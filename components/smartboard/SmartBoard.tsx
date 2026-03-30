@@ -830,7 +830,7 @@ function WhiteboardToolbar({
                   <ChevronDown className="w-3 h-3" />
                 </button>
                 {showShapes && (
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 grid grid-cols-4 gap-1">
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 grid grid-cols-4 gap-3 min-w-[180px]">
                     {shapeOptions.map((shape) => {
                       const Icon = shape.icon;
                       return (
@@ -838,12 +838,12 @@ function WhiteboardToolbar({
                           key={shape.id}
                           onClick={() => { onShapeChange(shape.id); setShowShapes(false); }}
                           className={cn(
-                            "p-2 rounded-lg transition-all hover:bg-gray-100 dark:hover:bg-gray-800",
+                            "p-3 rounded-xl transition-all hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center",
                             currentShape === shape.id ? "bg-blue-500 text-white" : "text-gray-700 dark:text-gray-200"
                           )}
                           title={shape.label}
                         >
-                          <Icon className="w-5 h-5" />
+                          <Icon className="w-6 h-6" />
                         </button>
                       );
                     })}
