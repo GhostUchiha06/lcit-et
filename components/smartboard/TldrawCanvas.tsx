@@ -60,6 +60,7 @@ interface TldrawCanvasProps {
   fillEnabled?: boolean;
   lineStyle?: LineStyle;
   onObjectsChange?: (objects: DrawObject[]) => void;
+  showLayers?: boolean;
 }
 
 function genId() {
@@ -605,6 +606,7 @@ export default function TldrawCanvas({
   fillEnabled = false,
   lineStyle = "solid",
   onObjectsChange,
+  showLayers = true,
 }: TldrawCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1388,27 +1390,29 @@ export default function TldrawCanvas({
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
       />
-      <LayersPanel
-        layers={layers}
-        currentLayerId={currentLayerId}
-        onSelectLayer={setCurrentLayerId}
-        onAddLayer={() => addLayer()}
-        onDeleteLayer={deleteLayer}
-        onRenameLayer={renameLayer}
-        onToggleVisibility={toggleLayerVisibility}
-        onToggleLock={toggleLayerLock}
-        onMoveLayer={moveLayer}
-        onSelectObjects={setSelectedObjectIds}
-        selectedObjectIds={selectedObjectIds}
-        onSelectObject={(id) => setSelectedObjectIds([id])}
-        onDeleteObject={deleteObject}
-        position={layerPanelPosition}
-        onPositionChange={setLayerPanelPosition}
-        isCollapsed={layerPanelCollapsed}
-        onToggleCollapse={() => setLayerPanelCollapsed(!layerPanelCollapsed)}
-        panelWidth={layerPanelWidth}
-        onWidthChange={setLayerPanelWidth}
-      />
+      {showLayers && (
+        <LayersPanel
+          layers={layers}
+          currentLayerId={currentLayerId}
+          onSelectLayer={setCurrentLayerId}
+          onAddLayer={() => addLayer()}
+          onDeleteLayer={deleteLayer}
+          onRenameLayer={renameLayer}
+          onToggleVisibility={toggleLayerVisibility}
+          onToggleLock={toggleLayerLock}
+          onMoveLayer={moveLayer}
+          onSelectObjects={setSelectedObjectIds}
+          selectedObjectIds={selectedObjectIds}
+          onSelectObject={(id) => setSelectedObjectIds([id])}
+          onDeleteObject={deleteObject}
+          position={layerPanelPosition}
+          onPositionChange={setLayerPanelPosition}
+          isCollapsed={layerPanelCollapsed}
+          onToggleCollapse={() => setLayerPanelCollapsed(!layerPanelCollapsed)}
+          panelWidth={layerPanelWidth}
+          onWidthChange={setLayerPanelWidth}
+        />
+      )}
     </div>
   );
 }

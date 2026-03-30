@@ -55,6 +55,7 @@ import {
   Triangle,
   Minus,
   Paintbrush,
+  Layers,
 } from "lucide-react";
 
 function ViewModeButton({
@@ -799,19 +800,19 @@ function WhiteboardToolbar({
   };
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 flex items-center gap-1">
-        <button onClick={onUndo} disabled={!canUndo} className={cn("p-2.5 rounded-xl transition-all", canUndo ? "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200" : "text-gray-300 dark:text-gray-600")}>
+    <div className="absolute bottom-4 md:bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 z-20">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 flex items-center gap-1 overflow-x-auto scrollbar-hide max-w-full md:max-w-none justify-center md:justify-start">
+        <button onClick={onUndo} disabled={!canUndo} className={cn("p-2.5 rounded-xl transition-all flex-shrink-0", canUndo ? "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200" : "text-gray-300 dark:text-gray-600")}>
           <Undo2 className="w-5 h-5" />
         </button>
-        <button onClick={onRedo} disabled={!canRedo} className={cn("p-2.5 rounded-xl transition-all", canRedo ? "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200" : "text-gray-300 dark:text-gray-600")}>
+        <button onClick={onRedo} disabled={!canRedo} className={cn("p-2.5 rounded-xl transition-all flex-shrink-0", canRedo ? "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200" : "text-gray-300 dark:text-gray-600")}>
           <Redo2 className="w-5 h-5" />
         </button>
 
         <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
 
         {tools.map((tool) => (
-          <div key={tool.id} className="relative">
+          <div key={tool.id} className="relative flex-shrink-0">
             {tool.id === "geo" ? (
               <>
                 <button
@@ -865,9 +866,9 @@ function WhiteboardToolbar({
           </div>
         ))}
 
-        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />
 
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <button
             onClick={() => { setShowColors(!showColors); setShowShapes(false); setShowExportMenu(false); }}
             className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
@@ -893,7 +894,7 @@ function WhiteboardToolbar({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 px-2">
+        <div className="flex items-center gap-1.5 px-2 flex-shrink-0">
           <CircleDot className="w-4 h-4 text-gray-400" />
           <input
             type="range"
@@ -906,9 +907,9 @@ function WhiteboardToolbar({
           <span className="text-xs text-gray-500 w-5">{strokeWidth}</span>
         </div>
 
-        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />
 
-        <div className="flex items-center gap-1 px-1">
+        <div className="flex items-center gap-1 px-1 flex-shrink-0">
           <button
             onClick={() => onLineStyleChange("solid")}
             className={cn(
@@ -948,12 +949,12 @@ function WhiteboardToolbar({
           </button>
         </div>
 
-        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />
 
         <button
           onClick={toggleGrid}
           className={cn(
-            "p-2.5 rounded-xl transition-all",
+            "p-2.5 rounded-xl transition-all flex-shrink-0",
             gridType !== "none" ? "bg-blue-500 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
           )}
           title={gridType === "none" ? "Show Grid" : "Hide Grid"}
@@ -961,9 +962,9 @@ function WhiteboardToolbar({
           <Grid3X3 className="w-5 h-5" />
         </button>
 
-        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />
 
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <button
             onClick={() => { setShowExportMenu(!showExportMenu); setShowColors(false); setShowShapes(false); }}
             className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all text-gray-700 dark:text-gray-200"
@@ -998,9 +999,9 @@ function WhiteboardToolbar({
           )}
         </div>
 
-        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />
 
-        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-1">
+        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-1 flex-shrink-0">
           <button onClick={onPrevPage} disabled={currentPage <= 1} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50">
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -1013,13 +1014,13 @@ function WhiteboardToolbar({
           </button>
         </div>
 
-        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />
 
-        <button onClick={onClear} className="p-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-all" title="Clear">
+        <button onClick={onClear} className="p-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-all flex-shrink-0" title="Clear">
           <Trash className="w-5 h-5" />
         </button>
 
-        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />
       </div>
     </div>
   );
@@ -1056,6 +1057,7 @@ function WhiteboardPanel({
   const [pages, setPages] = useState([{ id: "1", name: "Page 1" }]);
   const [currentPage, setCurrentPage] = useState(1);
   const [drawnObjects, setDrawnObjects] = useState<any[]>([]);
+  const [showLayers, setShowLayers] = useState(true);
 
   const handleEditorReady = useCallback(() => {
   }, []);
@@ -1162,7 +1164,20 @@ function WhiteboardPanel({
           setDrawnObjects(objs);
           setCanUndo(objs.length > 0);
         }}
+        showLayers={showLayers}
       />
+      <button
+        onClick={() => setShowLayers(!showLayers)}
+        className={cn(
+          "absolute top-4 right-4 z-30 p-3 rounded-xl shadow-lg border transition-all",
+          showLayers 
+            ? "bg-blue-500 text-white border-blue-600" 
+            : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+        )}
+        title={showLayers ? "Hide Layers Panel" : "Show Layers Panel"}
+      >
+        <Layers className="w-5 h-5" />
+      </button>
       <WhiteboardToolbar
         currentTool={currentTool}
         onToolChange={setCurrentTool}
