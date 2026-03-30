@@ -30,7 +30,6 @@ import {
   Pencil,
   Folder,
   FolderOpen,
-  Save,
   MousePointer2,
   Highlighter,
   Square,
@@ -41,6 +40,11 @@ import {
   Redo2,
   Trash,
   CircleDot,
+  StickyNote,
+  DownloadCloud,
+  FileInput,
+  FileOutput,
+  Layers,
 } from "lucide-react";
 
 function ViewModeButton({
@@ -415,17 +419,27 @@ function ImageViewer({ file, onClose }: { file: DriveFile; onClose: () => void }
   );
 }
 
-type Tool = "select" | "pen" | "highlighter" | "eraser" | "rectangle" | "ellipse" | "arrow" | "text";
+type Tool = "select" | "draw" | "highlight" | "eraser" | "brush-eraser" | "geo" | "arrow" | "text" | "note";
 
 const tools = [
   { id: "select" as Tool, icon: MousePointer2, label: "Select" },
-  { id: "pen" as Tool, icon: Pencil, label: "Pen" },
-  { id: "highlighter" as Tool, icon: Highlighter, label: "Highlighter" },
-  { id: "eraser" as Tool, icon: Eraser, label: "Eraser" },
-  { id: "rectangle" as Tool, icon: Square, label: "Rectangle" },
-  { id: "ellipse" as Tool, icon: Circle, label: "Ellipse" },
+  { id: "draw" as Tool, icon: Pencil, label: "Pen" },
+  { id: "highlight" as Tool, icon: Highlighter, label: "Highlighter" },
+  { id: "eraser" as Tool, icon: Eraser, label: "Shape Eraser" },
+  { id: "brush-eraser" as Tool, icon: Trash2, label: "Brush Eraser" },
+  { id: "geo" as Tool, icon: Square, label: "Shapes" },
   { id: "arrow" as Tool, icon: ArrowRight, label: "Arrow" },
   { id: "text" as Tool, icon: Type, label: "Text" },
+  { id: "note" as Tool, icon: StickyNote, label: "Sticky Note" },
+];
+
+const shapeOptions = [
+  { id: "rectangle", icon: Square, label: "Rectangle" },
+  { id: "ellipse", icon: Circle, label: "Ellipse" },
+  { id: "diamond", icon: Square, label: "Diamond" },
+  { id: "triangle", icon: Square, label: "Triangle" },
+  { id: "line", icon: ArrowRight, label: "Line" },
+  { id: "arrow", icon: ArrowRight, label: "Arrow" },
 ];
 
 function WhiteboardToolbar({
@@ -438,8 +452,16 @@ function WhiteboardToolbar({
   onUndo,
   onRedo,
   onClear,
+  onExport,
   canUndo,
   canRedo,
+  currentShape,
+  onShapeChange,
+  onAddPage,
+  onPrevPage,
+  onNextPage,
+  currentPage,
+  pageCount,
 }: {
   currentTool: Tool;
   onToolChange: (tool: Tool) => void;
@@ -450,10 +472,20 @@ function WhiteboardToolbar({
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
+  onExport: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  currentShape: string;
+  onShapeChange: (shape: string) => void;
+  onAddPage: () => void;
+  onPrevPage: () => void;
+  onNextPage: () => void;
+  currentPage: number;
+  pageCount: number;
 }) {
   const [showColors, setShowColors] = useState(false);
+  const [showShapes, setShowShapes] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
@@ -468,24 +500,57 @@ function WhiteboardToolbar({
         <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
 
         {tools.map((tool) => (
-          <button
-            key={tool.id}
-            onClick={() => onToolChange(tool.id)}
-            className={cn(
-              "p-2.5 rounded-xl transition-all",
-              currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+          <div key={tool.id} className="relative">
+            {tool.id === "geo" ? (
+              <>
+                <button
+                  onClick={() => { onToolChange(tool.id); setShowShapes(!showShapes); setShowExportMenu(false); }}
+                  className={cn(
+                    "p-2.5 rounded-xl transition-all relative",
+                    currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+                  )}
+                  title={tool.label}
+                >
+                  <tool.icon className="w-5 h-5" />
+                </button>
+                {showShapes && currentTool === "geo" && (
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 flex gap-1">
+                    {shapeOptions.map((shape) => (
+                      <button
+                        key={shape.id}
+                        onClick={() => { onShapeChange(shape.id); setShowShapes(false); }}
+                        className={cn(
+                          "p-2 rounded-lg transition-all",
+                          currentShape === shape.id ? "bg-blue-500 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                        )}
+                        title={shape.label}
+                      >
+                        <shape.icon className="w-4 h-4" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={() => { onToolChange(tool.id); setShowShapes(false); setShowExportMenu(false); }}
+                className={cn(
+                  "p-2.5 rounded-xl transition-all",
+                  currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+                )}
+                title={tool.label}
+              >
+                <tool.icon className="w-5 h-5" />
+              </button>
             )}
-            title={tool.label}
-          >
-            <tool.icon className="w-5 h-5" />
-          </button>
+          </div>
         ))}
 
         <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
 
         <div className="relative">
           <button
-            onClick={() => setShowColors(!showColors)}
+            onClick={() => { setShowColors(!showColors); setShowShapes(false); setShowExportMenu(false); }}
             className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
           >
             <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: currentColor }} />
@@ -524,6 +589,44 @@ function WhiteboardToolbar({
 
         <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
 
+        <div className="relative">
+          <button
+            onClick={() => { setShowExportMenu(!showExportMenu); setShowColors(false); setShowShapes(false); }}
+            className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all text-gray-700 dark:text-gray-200"
+            title="Export"
+          >
+            <DownloadCloud className="w-5 h-5" />
+          </button>
+          {showExportMenu && (
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 min-w-32">
+              <button
+                onClick={() => { onExport(); setShowExportMenu(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
+              >
+                <Download className="w-4 h-4" />
+                Export PNG
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
+
+        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-1">
+          <button onClick={onPrevPage} disabled={currentPage <= 1} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-xs px-2">{currentPage}/{pageCount}</span>
+          <button onClick={onNextPage} disabled={currentPage >= pageCount} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+          <button onClick={onAddPage} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700" title="Add Page">
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
+
         <button onClick={onClear} className="p-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-all" title="Clear">
           <Trash className="w-5 h-5" />
         </button>
@@ -547,10 +650,14 @@ function WhiteboardPanel({
   strokeWidth: number;
   onStrokeWidthChange: (width: number) => void;
 }) {
-  const [currentTool, setCurrentTool] = useState<Tool>("pen");
+  const [currentTool, setCurrentTool] = useState<Tool>("draw");
+  const [currentShape, setCurrentShape] = useState("rectangle");
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [pages, setPages] = useState([{ id: "1", name: "Page 1" }]);
+  const [currentPage, setCurrentPage] = useState(1);
   const editorRef = useRef<any>(null);
+  const canvasRef = useRef<any>(null);
 
   const handleEditorReady = useCallback((editor: any) => {
     editorRef.current = editor;
@@ -570,8 +677,90 @@ function WhiteboardPanel({
     }
   };
 
+  const handleExport = async () => {
+    if (!editorRef.current) return;
+    try {
+      const editor = editorRef.current;
+      const asset = await editor.toImage();
+      const url = URL.createObjectURL(asset);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `whiteboard-page-${currentPage}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Exported successfully!");
+    } catch (error) {
+      toast.error("Failed to export");
+      console.error(error);
+    }
+  };
+
+  const handleAddPage = () => {
+    const newPage = { id: Date.now().toString(), name: `Page ${pages.length + 1}` };
+    setPages([...pages, newPage]);
+    setCurrentPage(pages.length + 1);
+    
+    if (editorRef.current) {
+      editorRef.current.createPage();
+      editorRef.current.setCurrentPage(newPage.id);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+      if (editorRef.current) {
+        const pageId = pages[currentPage - 2]?.id;
+        if (pageId) editorRef.current.setCurrentPage(pageId);
+      }
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < pages.length) {
+      setCurrentPage(currentPage + 1);
+      if (editorRef.current) {
+        const pageId = pages[currentPage]?.id;
+        if (pageId) editorRef.current.setCurrentPage(pageId);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+    
+    const toolMap: Record<string, string> = {
+      select: "select",
+      draw: "draw",
+      highlight: "highlight",
+      eraser: "eraser",
+      "brush-eraser": "eraser",
+      geo: "geo",
+      arrow: "arrow",
+      text: "text",
+      note: "note",
+    };
+    
+    const tldrawTool = toolMap[currentTool] || "select";
+    
+    try {
+      if (editorRef.current.getCurrentToolId() !== tldrawTool) {
+        editorRef.current.setCurrentTool(tldrawTool);
+      }
+      
+      if (currentTool === "geo" && editorRef.current.getCurrentTool()) {
+        const tool = editorRef.current.getCurrentTool();
+        if (tool && typeof tool.setGeo === "function") {
+          tool.setGeo(currentShape);
+        }
+      }
+    } catch (e) {
+      console.error("Tool change error:", e);
+    }
+  }, [currentTool, currentShape]);
+
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className="relative w-full h-full overflow-hidden" ref={canvasRef}>
       <TldrawCanvas
         bgColor={bgColor}
         gridType={gridType}
@@ -590,8 +779,16 @@ function WhiteboardPanel({
         onUndo={handleUndo}
         onRedo={handleRedo}
         onClear={handleClear}
+        onExport={handleExport}
         canUndo={canUndo}
         canRedo={canRedo}
+        currentShape={currentShape}
+        onShapeChange={setCurrentShape}
+        onAddPage={handleAddPage}
+        onPrevPage={handlePrevPage}
+        onNextPage={handleNextPage}
+        currentPage={currentPage}
+        pageCount={pages.length}
       />
     </div>
   );

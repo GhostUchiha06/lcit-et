@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useCallback, useEffect, forwardRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface TldrawCanvasHandle {
   getEditor: () => any;
@@ -13,10 +14,14 @@ interface TldrawCanvasProps {
   currentTool?: string;
   currentColor?: string;
   strokeWidth?: number;
+  currentPage?: number;
+  onPageChange?: (page: number) => void;
+  pageCount?: number;
+  onPageCountChange?: (count: number) => void;
 }
 
 const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
-  ({ bgColor, gridType, onEditorReady, currentTool = "pen", currentColor = "#000000", strokeWidth = 4 }, ref) => {
+  ({ bgColor, gridType, onEditorReady, currentTool = "draw", currentColor = "#000000", strokeWidth = 4 }, ref) => {
     const editorRef = useRef<any>(null);
     const [TldrawComponent, setTldrawComponent] = useState<any>(null);
     const isMountedRef = useRef(false);
@@ -50,27 +55,48 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
       
       const toolMap: Record<string, string> = {
         select: "select",
-        pen: "draw",
-        highlighter: "highlight",
+        draw: "draw",
+        highlight: "highlight",
         eraser: "eraser",
-        rectangle: "rectangle",
-        ellipse: "ellipse",
-        line: "line",
+        geo: "geo",
         arrow: "arrow",
         text: "text",
         sticky: "note",
+        hand: "hand",
       };
       
       const tldrawTool = toolMap[currentTool] || "select";
       
-      if (editorRef.current.getCurrentToolId() !== tldrawTool) {
-        editorRef.current.setCurrentTool(tldrawTool);
+      try {
+        if (editorRef.current.getCurrentToolId() !== tldrawTool) {
+          editorRef.current.setCurrentTool(tldrawTool);
+          
+          if (currentTool === "rectangle" || currentTool === "ellipse") {
+            setTimeout(() => {
+              const tool = editorRef.current?.getCurrentTool();
+              if (tool && currentTool === "rectangle") {
+                tool.parent.updateShape({ id: "rectangle", type: "geo", props: { geo: "rectangle" } });
+              } else if (tool && currentTool === "ellipse") {
+                tool.parent.updateShape({ id: "ellipse", type: "geo", props: { geo: "ellipse" } });
+              }
+            }, 50);
+          }
+        }
+      } catch (e) {
+        console.error("Tool change error:", e);
       }
     }, [currentTool]);
 
     useEffect(() => {
       if (editorRef.current) {
         editorRef.current.user.updateUserPreferences({ color: currentColor });
+        
+        const style = editorRef.current.getCurrentStyle();
+        if (style) {
+          editorRef.current.updateStyle([
+            { id: "color", value: currentColor }
+          ]);
+        }
       }
     }, [currentColor]);
 
