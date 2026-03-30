@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useEffect, forwardRef, useImperativeHandle, useState } from "react";
+import { useRef, useCallback, useEffect, forwardRef, useState } from "react";
 
 interface TldrawCanvasHandle {
   getEditor: () => any;
@@ -19,19 +19,21 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
   ({ bgColor, gridType, onEditorReady, currentTool = "pen", currentColor = "#000000", strokeWidth = 4 }, ref) => {
     const editorRef = useRef<any>(null);
     const [TldrawComponent, setTldrawComponent] = useState<any>(null);
-
-    useImperativeHandle(ref, () => ({
-      getEditor: () => editorRef.current,
-    }));
+    const isMountedRef = useRef(false);
 
     useEffect(() => {
+      if (isMountedRef.current) return;
+      isMountedRef.current = true;
+      
       import("@tldraw/tldraw").then((mod) => {
         setTldrawComponent(() => mod.Tldraw);
       });
+      
       const link = document.createElement("link");
       link.rel = "stylesheet";
       link.href = "https://unpkg.com/@tldraw/tldraw/tldraw.css";
       document.head.appendChild(link);
+      
       return () => {
         document.head.removeChild(link);
       };
@@ -44,25 +46,25 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
     }, [onEditorReady, currentColor]);
 
     useEffect(() => {
-      if (editorRef.current) {
-        const toolMap: Record<string, string> = {
-          select: "select",
-          pen: "draw",
-          highlighter: "highlight",
-          eraser: "eraser",
-          rectangle: "rectangle",
-          ellipse: "ellipse",
-          line: "line",
-          arrow: "arrow",
-          text: "text",
-          sticky: "note",
-        };
-        
-        const tldrawTool = toolMap[currentTool] || "select";
-        
-        if (editorRef.current.getCurrentToolId() !== tldrawTool) {
-          editorRef.current.setCurrentTool(tldrawTool);
-        }
+      if (!editorRef.current) return;
+      
+      const toolMap: Record<string, string> = {
+        select: "select",
+        pen: "draw",
+        highlighter: "highlight",
+        eraser: "eraser",
+        rectangle: "rectangle",
+        ellipse: "ellipse",
+        line: "line",
+        arrow: "arrow",
+        text: "text",
+        sticky: "note",
+      };
+      
+      const tldrawTool = toolMap[currentTool] || "select";
+      
+      if (editorRef.current.getCurrentToolId() !== tldrawTool) {
+        editorRef.current.setCurrentTool(tldrawTool);
       }
     }, [currentTool]);
 
@@ -82,8 +84,8 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
           style={{ backgroundColor: bgColor }}
         >
           <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-muted-foreground">Loading whiteboard...</p>
+            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-gray-500">Loading...</p>
           </div>
         </div>
       );
@@ -95,16 +97,17 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
         style={{ 
           backgroundColor: bgColor, 
           backgroundImage: gridType === "dots" 
-            ? `radial-gradient(circle, ${gridColor} 1px, transparent 1px)` 
+            ? `radial-gradient(circle, ${gridColor} 1.5px, transparent 1.5px)` 
             : gridType === "lines" 
               ? `linear-gradient(${lineColor} 1px, transparent 1px), linear-gradient(90deg, ${lineColor} 1px, transparent 1px)` 
               : "none", 
-          backgroundSize: gridType === "dots" ? "20px 20px" : gridType === "lines" ? "20px 20px" : "auto" 
+          backgroundSize: gridType === "dots" ? "24px 24px" : gridType === "lines" ? "24px 24px" : "auto" 
         }}
       >
         <TldrawComponent 
           onMount={handleMount} 
           autoFocus 
+          hideUi
           components={{ 
             DebugMenu: () => null,
             DebugPanel: () => null,
@@ -112,7 +115,6 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
             TopPanel: () => null,
             HelperButtons: () => null,
             TldrawToolbar: () => null,
-            ToolButton: () => null,
           }} 
         />
       </div>

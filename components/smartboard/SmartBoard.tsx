@@ -22,7 +22,6 @@ import {
   Grid3X3,
   Check,
   RefreshCw,
-  AlertCircle,
   FileTextIcon,
   ImageIcon,
   ChevronDown,
@@ -38,15 +37,9 @@ import {
   Circle,
   ArrowRight,
   Type,
-  StickyNote,
-  Upload,
   Undo2,
   Redo2,
   Trash,
-  ZoomIn,
-  ZoomOut,
-  Move,
-  Palette,
   CircleDot,
 } from "lucide-react";
 
@@ -90,15 +83,6 @@ const BG_COLORS = [
   { name: "Dark Blue", value: "#1a1a2e" },
 ];
 
-const CANVAS_SIZES = [
-  { name: "Square (1:1)", value: { width: 1920, height: 1920 } },
-  { name: "Landscape HD (16:9)", value: { width: 1920, height: 1080 } },
-  { name: "Portrait (9:16)", value: { width: 1080, height: 1920 } },
-  { name: "A4 Landscape", value: { width: 1123, height: 794 } },
-  { name: "A4 Portrait", value: { width: 794, height: 1123 } },
-  { name: "Widescreen (21:9)", value: { width: 2560, height: 1080 } },
-];
-
 const PEN_COLORS = [
   "#000000", "#374151", "#dc2626", "#ea580c", "#ca8a04", "#16a34a", "#0891b2", "#2563eb", "#7c3aed", "#db2777",
 ];
@@ -108,8 +92,6 @@ function BoardSettingsModal({
   onClose,
   bgColor,
   onBgColorChange,
-  canvasSize,
-  onCanvasSizeChange,
   gridType,
   onGridTypeChange,
 }: {
@@ -117,17 +99,15 @@ function BoardSettingsModal({
   onClose: () => void;
   bgColor: string;
   onBgColorChange: (color: string) => void;
-  canvasSize: { width: number; height: number };
-  onCanvasSizeChange: (size: { width: number; height: number }) => void;
   gridType: "dots" | "lines" | "none";
   onGridTypeChange: (type: "dots" | "lines" | "none") => void;
 }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background rounded-xl shadow-2xl w-full max-w-md overflow-hidden border">
-        <div className="flex items-center justify-between p-4 border-b bg-muted/30">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-background rounded-xl shadow-2xl w-full max-w-md overflow-hidden border" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b">
           <h3 className="font-semibold flex items-center gap-2">
             <Settings className="w-5 h-5" />
             Board Settings
@@ -179,28 +159,8 @@ function BoardSettingsModal({
               ))}
             </div>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-3">Canvas Size</label>
-            <div className="grid grid-cols-2 gap-2">
-              {CANVAS_SIZES.map((size) => (
-                <button
-                  key={size.name}
-                  onClick={() => onCanvasSizeChange(size.value)}
-                  className={cn(
-                    "py-2.5 px-3 rounded-lg border transition-all text-sm font-medium",
-                    canvasSize.width === size.value.width && canvasSize.height === size.value.height
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-secondary"
-                  )}
-                >
-                  {size.name}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
-        <div className="p-4 border-t bg-muted/30">
+        <div className="p-4 border-t">
           <button
             onClick={onClose}
             className="w-full py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
@@ -326,13 +286,13 @@ function NotesPanel({
         <button onClick={() => setShowFiles(!showFiles)} className="w-full flex items-center justify-between p-3 hover:bg-secondary/50 transition-colors">
           <div className="flex items-center gap-2">
             <Folder className="w-4 h-4 text-primary" />
-            <span className="font-medium text-sm">Drive Folders ({totalFiles} files)</span>
+            <span className="font-medium text-sm">Drive Files ({totalFiles})</span>
           </div>
           {showFiles ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </button>
 
         {showFiles && (
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-60 overflow-y-auto">
             {isLoadingFiles ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -341,20 +301,11 @@ function NotesPanel({
             ) : folderStructure.length === 0 ? (
               <div className="text-center py-4 px-3">
                 <Folder className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" />
-                <p className="text-sm text-muted-foreground">No folders found in Drive.</p>
-                <p className="text-xs text-muted-foreground/70 mt-1">Save a whiteboard image to create a date folder.</p>
-                <p className="text-xs text-muted-foreground/50 mt-2">Folders are named by date (e.g., 2026-03-27)</p>
+                <p className="text-sm text-muted-foreground">No files found.</p>
               </div>
             ) : (
               folderStructure.map((folder) => (
-                <FolderItem
-                  key={folder.id}
-                  folder={folder}
-                  onFileClick={onFileClick}
-                  onFolderClick={onFolderClick}
-                  expandedFolders={expandedFolders}
-                  level={0}
-                />
+                <FolderItem key={folder.id} folder={folder} onFileClick={onFileClick} onFolderClick={onFolderClick} expandedFolders={expandedFolders} level={0} />
               ))
             )}
             <div className="p-2 border-t">
@@ -392,8 +343,7 @@ function PDFViewer({ file, onClose }: { file: DriveFile; onClose: () => void }) 
         const response = await fetch(`/api/drive?action=download&fileId=${file.id}`);
         if (response.ok) {
           const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          setPdfUrl(url);
+          setPdfUrl(URL.createObjectURL(blob));
         } else {
           setError("Failed to load PDF");
         }
@@ -404,7 +354,6 @@ function PDFViewer({ file, onClose }: { file: DriveFile; onClose: () => void }) 
       }
     };
     loadPdf();
-    return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); };
   }, [file.id]);
 
   return (
@@ -415,12 +364,11 @@ function PDFViewer({ file, onClose }: { file: DriveFile; onClose: () => void }) 
           <h2 className="font-semibold truncate">{file.name}</h2>
         </div>
         <div className="flex items-center gap-2">
-          <a href={pdfUrl || "#"} download={file.name} className="p-2 hover:bg-secondary rounded-lg transition-colors" title="Download"><Download className="w-5 h-5" /></a>
-          <button onClick={onClose} className="p-2 hover:bg-secondary rounded-lg transition-colors" title="Close"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-2 hover:bg-secondary rounded-lg transition-colors"><X className="w-5 h-5" /></button>
         </div>
       </div>
       <div className="flex-1 overflow-hidden bg-muted/30">
-        {loading ? <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div> : error ? <div className="flex flex-col items-center justify-center h-full text-muted-foreground"><AlertCircle className="w-12 h-12 mb-4" /><p>{error}</p></div> : pdfUrl ? <iframe src={pdfUrl} className="w-full h-full border-0" title={file.name} /> : null}
+        {loading ? <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div> : error ? <div className="flex flex-col items-center justify-center h-full text-muted-foreground"><p>{error}</p></div> : pdfUrl ? <iframe src={pdfUrl} className="w-full h-full border-0" /> : null}
       </div>
     </div>
   );
@@ -438,9 +386,7 @@ function ImageViewer({ file, onClose }: { file: DriveFile; onClose: () => void }
       try {
         const response = await fetch(`/api/drive?action=download&fileId=${file.id}`);
         if (response.ok) {
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          setImageUrl(url);
+          setImageUrl(URL.createObjectURL(await response.blob()));
         } else {
           setError("Failed to load image");
         }
@@ -451,7 +397,6 @@ function ImageViewer({ file, onClose }: { file: DriveFile; onClose: () => void }
       }
     };
     loadImage();
-    return () => { if (imageUrl) URL.revokeObjectURL(imageUrl); };
   }, [file.id]);
 
   return (
@@ -461,41 +406,38 @@ function ImageViewer({ file, onClose }: { file: DriveFile; onClose: () => void }
           <ImageIcon className="w-5 h-5 text-blue-500" />
           <h2 className="font-semibold truncate">{file.name}</h2>
         </div>
-        <div className="flex items-center gap-2">
-          <a href={imageUrl || "#"} download={file.name} className="p-2 hover:bg-secondary rounded-lg transition-colors" title="Download"><Download className="w-5 h-5" /></a>
-          <button onClick={onClose} className="p-2 hover:bg-secondary rounded-lg transition-colors" title="Close"><X className="w-5 h-5" /></button>
-        </div>
+        <button onClick={onClose} className="p-2 hover:bg-secondary rounded-lg transition-colors"><X className="w-5 h-5" /></button>
       </div>
       <div className="flex-1 overflow-auto bg-muted/30 flex items-center justify-center p-4">
-        {loading ? <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /> : error ? <div className="text-center text-muted-foreground"><AlertCircle className="w-12 h-12 mb-4 mx-auto" /><p>{error}</p></div> : imageUrl ? <img src={imageUrl} alt={file.name} className="max-w-full max-h-full object-contain" /> : null}
+        {loading ? <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /> : error ? <p className="text-muted-foreground">{error}</p> : imageUrl ? <img src={imageUrl} alt={file.name} className="max-w-full max-h-full object-contain" /> : null}
       </div>
     </div>
   );
 }
 
-type Tool = "select" | "pen" | "eraser" | "highlighter" | "rectangle" | "ellipse" | "arrow" | "line" | "text" | "sticky" | "image";
+type Tool = "select" | "pen" | "highlighter" | "eraser" | "rectangle" | "ellipse" | "arrow" | "text";
 
-const mainTools = [
-  { id: "select" as Tool, icon: MousePointer2, label: "Select (V)" },
-  { id: "pen" as Tool, icon: Pencil, label: "Pen (P)" },
-  { id: "highlighter" as Tool, icon: Highlighter, label: "Highlighter (H)" },
-  { id: "eraser" as Tool, icon: Eraser, label: "Eraser (E)" },
-  { id: "rectangle" as Tool, icon: Square, label: "Rectangle (R)" },
-  { id: "ellipse" as Tool, icon: Circle, label: "Ellipse (O)" },
-  { id: "arrow" as Tool, icon: ArrowRight, label: "Arrow (A)" },
-  { id: "text" as Tool, icon: Type, label: "Text (T)" },
+const tools = [
+  { id: "select" as Tool, icon: MousePointer2, label: "Select" },
+  { id: "pen" as Tool, icon: Pencil, label: "Pen" },
+  { id: "highlighter" as Tool, icon: Highlighter, label: "Highlighter" },
+  { id: "eraser" as Tool, icon: Eraser, label: "Eraser" },
+  { id: "rectangle" as Tool, icon: Square, label: "Rectangle" },
+  { id: "ellipse" as Tool, icon: Circle, label: "Ellipse" },
+  { id: "arrow" as Tool, icon: ArrowRight, label: "Arrow" },
+  { id: "text" as Tool, icon: Type, label: "Text" },
 ];
 
-function BottomToolbar({
+function WhiteboardToolbar({
   currentTool,
   onToolChange,
   currentColor,
   onColorChange,
   strokeWidth,
   onStrokeWidthChange,
-  onClear,
   onUndo,
   onRedo,
+  onClear,
   canUndo,
   canRedo,
 }: {
@@ -505,43 +447,33 @@ function BottomToolbar({
   onColorChange: (color: string) => void;
   strokeWidth: number;
   onStrokeWidthChange: (width: number) => void;
-  onClear: () => void;
   onUndo: () => void;
   onRedo: () => void;
+  onClear: () => void;
   canUndo: boolean;
   canRedo: boolean;
 }) {
-  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showColors, setShowColors] = useState(false);
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
-      <div className="bg-background/95 backdrop-blur-sm rounded-2xl shadow-2xl border p-2 flex items-center gap-1">
-        <button
-          onClick={onUndo}
-          disabled={!canUndo}
-          className={cn("p-2.5 rounded-lg transition-all", canUndo ? "hover:bg-secondary text-foreground" : "text-muted-foreground opacity-50")}
-          title="Undo (Ctrl+Z)"
-        >
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 flex items-center gap-1">
+        <button onClick={onUndo} disabled={!canUndo} className={cn("p-2.5 rounded-xl transition-all", canUndo ? "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200" : "text-gray-300 dark:text-gray-600")}>
           <Undo2 className="w-5 h-5" />
         </button>
-        <button
-          onClick={onRedo}
-          disabled={!canRedo}
-          className={cn("p-2.5 rounded-lg transition-all", canRedo ? "hover:bg-secondary text-foreground" : "text-muted-foreground opacity-50")}
-          title="Redo (Ctrl+Y)"
-        >
+        <button onClick={onRedo} disabled={!canRedo} className={cn("p-2.5 rounded-xl transition-all", canRedo ? "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200" : "text-gray-300 dark:text-gray-600")}>
           <Redo2 className="w-5 h-5" />
         </button>
 
-        <div className="w-px h-8 bg-border mx-2" />
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
 
-        {mainTools.map((tool) => (
+        {tools.map((tool) => (
           <button
             key={tool.id}
             onClick={() => onToolChange(tool.id)}
             className={cn(
-              "p-2.5 rounded-lg transition-all",
-              currentTool === tool.id ? "bg-primary text-primary-foreground" : "hover:bg-secondary text-foreground"
+              "p-2.5 rounded-xl transition-all",
+              currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
             )}
             title={tool.label}
           >
@@ -549,26 +481,25 @@ function BottomToolbar({
           </button>
         ))}
 
-        <div className="w-px h-8 bg-border mx-2" />
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
 
         <div className="relative">
           <button
-            onClick={() => setShowColorPicker(!showColorPicker)}
-            className={cn("p-2.5 rounded-lg transition-all flex items-center gap-2", showColorPicker ? "bg-primary text-primary-foreground" : "hover:bg-secondary text-foreground")}
-            title="Color"
+            onClick={() => setShowColors(!showColors)}
+            className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
           >
-            <div className="w-5 h-5 rounded-full border-2 border-white/50" style={{ backgroundColor: currentColor }} />
+            <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: currentColor }} />
           </button>
-          {showColorPicker && (
-            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur-sm rounded-xl shadow-xl border p-3">
-              <div className="grid grid-cols-5 gap-2">
+          {showColors && (
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2">
+              <div className="grid grid-cols-5 gap-1.5">
                 {PEN_COLORS.map((color) => (
                   <button
                     key={color}
-                    onClick={() => { onColorChange(color); setShowColorPicker(false); }}
+                    onClick={() => { onColorChange(color); setShowColors(false); }}
                     className={cn(
-                      "w-8 h-8 rounded-full transition-all hover:scale-110 border-2",
-                      currentColor === color ? "ring-2 ring-primary ring-offset-2 border-primary" : "border-transparent"
+                      "w-7 h-7 rounded-full transition-all hover:scale-110",
+                      currentColor === color ? "ring-2 ring-blue-500 ring-offset-2" : ""
                     )}
                     style={{ backgroundColor: color }}
                   />
@@ -578,26 +509,22 @@ function BottomToolbar({
           )}
         </div>
 
-        <div className="flex items-center gap-2 px-3">
+        <div className="flex items-center gap-1.5 px-2">
+          <CircleDot className="w-4 h-4 text-gray-400" />
           <input
             type="range"
             min="1"
             max="20"
             value={strokeWidth}
             onChange={(e) => onStrokeWidthChange(parseInt(e.target.value))}
-            className="w-24 accent-primary"
-            title={`Stroke: ${strokeWidth}px`}
+            className="w-20 accent-blue-500"
           />
-          <span className="text-xs text-muted-foreground w-8">{strokeWidth}</span>
+          <span className="text-xs text-gray-500 w-5">{strokeWidth}</span>
         </div>
 
-        <div className="w-px h-8 bg-border mx-2" />
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
 
-        <button
-          onClick={onClear}
-          className="p-2.5 rounded-lg hover:bg-destructive/10 text-destructive transition-all"
-          title="Clear Canvas"
-        >
+        <button onClick={onClear} className="p-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-all" title="Clear">
           <Trash className="w-5 h-5" />
         </button>
       </div>
@@ -606,37 +533,27 @@ function BottomToolbar({
 }
 
 function WhiteboardPanel({
-  onOpenSettings,
   bgColor,
   gridType,
   currentColor,
   onColorChange,
   strokeWidth,
   onStrokeWidthChange,
-  onSaveComplete,
 }: {
-  onOpenSettings: () => void;
   bgColor: string;
   gridType: "dots" | "lines" | "none";
   currentColor: string;
   onColorChange: (color: string) => void;
   strokeWidth: number;
   onStrokeWidthChange: (width: number) => void;
-  onSaveComplete?: () => void;
 }) {
-  const [isExporting, setIsExporting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [savePassword, setSavePassword] = useState("");
-  const [showSavePasswordPrompt, setShowSavePasswordPrompt] = useState(false);
   const [currentTool, setCurrentTool] = useState<Tool>("pen");
-  const editorRef = useRef<any>(null);
-  const tldrawRef = useRef<any>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const editorRef = useRef<any>(null);
 
   const handleEditorReady = useCallback((editor: any) => {
     editorRef.current = editor;
-    
     editor.store.listen(() => {
       const history = editor.getHistory();
       setCanUndo(history.canUndo());
@@ -644,144 +561,18 @@ function WhiteboardPanel({
     });
   }, []);
 
-  const formatTimestamp = () => {
-    const now = new Date();
-    const date = now.toISOString().slice(0, 10);
-    const time = now.toTimeString().slice(0, 8).replace(/:/g, "-");
-    return { date, time, fileName: `${date}::${time}` };
-  };
-
-  const handleUndo = () => {
-    editorRef.current?.undo();
-  };
-
-  const handleRedo = () => {
-    editorRef.current?.redo();
-  };
-
+  const handleUndo = () => editorRef.current?.undo();
+  const handleRedo = () => editorRef.current?.redo();
   const handleClear = () => {
     if (editorRef.current) {
-      const shapeIds = editorRef.current.getCurrentPageShapeIds();
-      if (shapeIds.size > 0) {
-        editorRef.current.deleteShapes([...shapeIds]);
-      }
-    }
-  };
-
-  const handleExport = async () => {
-    if (!editorRef.current) return;
-    setIsExporting(true);
-    try {
-      const editor = editorRef.current;
-      const shapeIds = editor.getCurrentPageShapeIds();
-      
-      if (shapeIds.size === 0) {
-        toast.error("No content to export");
-        setIsExporting(false);
-        return;
-      }
-
-      const { blob } = await editor.toImage([...shapeIds], { format: 'png', background: false, pixelRatio: 3 });
-
-      const { fileName } = formatTimestamp();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${fileName}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("PNG exported successfully");
-    } catch (error) {
-      console.error("Export error:", error);
-      toast.error("Failed to export");
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleSaveToDrive = async () => {
-    if (!editorRef.current) {
-      toast.error("Editor not ready");
-      return;
-    }
-
-    const requiredPassword = process.env.NEXT_PUBLIC_SAVE_PASSWORD;
-    if (requiredPassword) {
-      setIsSaving(true);
-      setSavePassword("");
-      setShowSavePasswordPrompt(true);
-      return;
-    }
-
-    await performSave();
-  };
-
-  const handleSavePasswordSubmit = async () => {
-    const requiredPassword = process.env.NEXT_PUBLIC_SAVE_PASSWORD;
-    if (savePassword === requiredPassword) {
-      setShowSavePasswordPrompt(false);
-      setIsSaving(false);
-      await performSave();
-    } else {
-      toast.error("Incorrect password");
-      setSavePassword("");
-    }
-  };
-
-  const performSave = async () => {
-    setIsExporting(true);
-    try {
-      const editor = editorRef.current;
-      
-      const shapeIds = editor.getCurrentPageShapeIds();
-      if (shapeIds.size === 0) {
-        toast.error("No content to save");
-        setIsExporting(false);
-        return;
-      }
-      
-      const { blob } = await editor.toImage([...shapeIds], { format: 'png', background: false, pixelRatio: 3 });
-
-      const arrayBuffer = await blob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      let binary = '';
-      for (let i = 0; i < uint8Array.length; i++) {
-        binary += String.fromCharCode(uint8Array[i]);
-      }
-      const base64 = btoa(binary);
-
-      const { date, fileName } = formatTimestamp();
-
-      const response = await fetch("/api/drive", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileData: base64,
-          fileName: `${fileName}.png`,
-          folderName: date,
-        }),
-      });
-
-      const res = await response.json();
-      if (res.success) {
-        toast.success(`Saved: ${fileName}.png`);
-        onSaveComplete?.();
-      } else {
-        toast.error(res.error || "Failed to save to Drive");
-      }
-    } catch (error) {
-      console.error("Save error:", error);
-      toast.error("Failed to save to Drive: " + (error as Error).message);
-    } finally {
-      setIsExporting(false);
-      setIsSaving(false);
+      const shapes = editorRef.current.getCurrentPageShapeIds();
+      if (shapes.size > 0) editorRef.current.deleteShapes([...shapes]);
     }
   };
 
   return (
-    <div className="relative flex flex-col h-full bg-background overflow-hidden">
+    <div className="relative w-full h-full overflow-hidden">
       <TldrawCanvas
-        ref={tldrawRef}
         bgColor={bgColor}
         gridType={gridType}
         onEditorReady={handleEditorReady}
@@ -789,90 +580,25 @@ function WhiteboardPanel({
         currentColor={currentColor}
         strokeWidth={strokeWidth}
       />
-
-      <BottomToolbar
+      <WhiteboardToolbar
         currentTool={currentTool}
         onToolChange={setCurrentTool}
         currentColor={currentColor}
         onColorChange={onColorChange}
         strokeWidth={strokeWidth}
         onStrokeWidthChange={onStrokeWidthChange}
-        onClear={handleClear}
         onUndo={handleUndo}
         onRedo={handleRedo}
+        onClear={handleClear}
         canUndo={canUndo}
         canRedo={canRedo}
       />
-
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-        <button
-          onClick={onOpenSettings}
-          className="p-3 bg-background/95 backdrop-blur-sm rounded-xl shadow-lg border hover:bg-secondary transition-all"
-          title="Board Settings"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
-        <button
-          onClick={handleExport}
-          disabled={isExporting}
-          className="flex items-center gap-2 px-4 py-3 bg-background/95 backdrop-blur-sm rounded-xl shadow-lg border hover:bg-secondary transition-all text-sm font-medium"
-        >
-          {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          Export
-        </button>
-        <button
-          onClick={handleSaveToDrive}
-          disabled={isExporting}
-          className="flex items-center gap-2 px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg transition-all text-sm font-medium"
-        >
-          {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Save
-        </button>
-      </div>
-
-      {showSavePasswordPrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background rounded-xl p-6 w-96 max-w-full shadow-2xl border">
-            <h2 className="text-lg font-bold mb-2">Password Required</h2>
-            <p className="mb-4 text-sm text-muted-foreground">Enter password to save to Google Drive:</p>
-            <input
-              type="password"
-              value={savePassword}
-              onChange={(e) => setSavePassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSavePasswordSubmit()}
-              placeholder="Enter password"
-              className="w-full px-4 py-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-primary"
-              autoFocus
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => { setShowSavePasswordPrompt(false); setIsSaving(false); }}
-                className="px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSavePasswordSubmit}
-                disabled={!savePassword}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 function ResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
-  return (
-    <div
-      className="resize-handle w-1 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0"
-      onMouseDown={onMouseDown}
-    />
-  );
+  return <div className="w-1 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0" onMouseDown={onMouseDown} />;
 }
 
 export default function SmartBoard() {
@@ -887,32 +613,19 @@ export default function SmartBoard() {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [bgColor, setBgColor] = useState("#ffffff");
   const [gridType, setGridType] = useState<"dots" | "lines" | "none">("dots");
-  const [canvasSize, setCanvasSize] = useState({ width: 1920, height: 1080 });
   const [viewingFile, setViewingFile] = useState<DriveFile | null>(null);
   const [currentColor, setCurrentColor] = useState("#000000");
   const [strokeWidth, setStrokeWidth] = useState(4);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
 
-  const loadFolderStructure = useCallback(async (showToast = false) => {
+  const loadFolderStructure = useCallback(async () => {
     setIsLoadingFiles(true);
     try {
-      const response = await fetch("/api/drive?action=structure");
-      const data = await response.json();
-      if (data.success !== false) {
-        const structure = data.structure || [];
-        setFolderStructure(structure);
-        const totalFiles = structure.reduce((acc: number, f: FolderStructure) => acc + f.files.length, 0);
-        const totalFolders = structure.length;
-        if (showToast) {
-          toast.info(`Found ${totalFolders} folders with ${totalFiles} files`);
-        }
-      } else {
-        toast.error(data.error || "Failed to load files");
-      }
-    } catch (error) {
-      console.error("Load files error:", error);
-      toast.error("Failed to load from Drive");
+      const data = await fetch("/api/drive?action=structure").then(r => r.json());
+      if (data.success !== false) setFolderStructure(data.structure || []);
+    } catch {
+      toast.error("Failed to load files");
     } finally {
       setIsLoadingFiles(false);
     }
@@ -921,62 +634,14 @@ export default function SmartBoard() {
   const handleFolderClick = useCallback((folderId: string) => {
     setExpandedFolders((prev) => {
       const next = new Set(prev);
-      if (next.has(folderId)) {
-        next.delete(folderId);
-      } else {
-        next.add(folderId);
-      }
+      next.has(folderId) ? next.delete(folderId) : next.add(folderId);
       return next;
     });
   }, []);
 
-  const handleFileClick = (file: DriveFile) => {
-    if (file.mimeType === "application/pdf" || file.mimeType.startsWith("image/")) {
-      setViewingFile(file);
-    }
-  };
-
   useEffect(() => {
-    const savedState = localStorage.getItem("smartboard-state");
-    if (savedState) {
-      const state = JSON.parse(savedState);
-      setViewMode(state.viewMode || "both");
-      setSplitRatio(state.splitRatio || 50);
-      if (state.slides) setSlides(state.slides);
-      if (state.currentSlide !== undefined) setCurrentSlide(state.currentSlide);
-    }
-    const savedSettings = localStorage.getItem("smartboard-settings");
-    if (savedSettings) {
-      const settings = JSON.parse(savedSettings);
-      setBgColor(settings.bgColor || "#ffffff");
-      setGridType(settings.gridType || "dots");
-      if (settings.canvasSize) setCanvasSize(settings.canvasSize);
-      if (settings.strokeWidth) setStrokeWidth(settings.strokeWidth);
-      if (settings.currentColor) setCurrentColor(settings.currentColor);
-    }
     loadFolderStructure();
   }, [loadFolderStructure]);
-
-  useEffect(() => {
-    localStorage.setItem("smartboard-state", JSON.stringify({ viewMode, splitRatio, slides, currentSlide }));
-  }, [viewMode, splitRatio, slides, currentSlide]);
-
-  useEffect(() => {
-    localStorage.setItem("smartboard-settings", JSON.stringify({ bgColor, gridType, canvasSize, strokeWidth, currentColor }));
-  }, [bgColor, gridType, canvasSize, strokeWidth, currentColor]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
-      if (e.key === "f" || e.key === "F") { e.preventDefault(); toggleFullscreen(); }
-      else if (e.key === "1") setViewMode("notes");
-      else if (e.key === "2") setViewMode("whiteboard");
-      else if (e.key === "3") setViewMode("both");
-      else if (e.key === "Escape" && viewingFile) setViewingFile(null);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [viewingFile]);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -991,8 +656,7 @@ export default function SmartBoard() {
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDraggingRef.current || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const newRatio = ((e.clientX - rect.left) / rect.width) * 100;
-    setSplitRatio(Math.max(20, Math.min(80, newRatio)));
+    setSplitRatio(Math.max(20, Math.min(80, ((e.clientX - rect.left) / rect.width) * 100)));
   }, []);
 
   const handleMouseUp = useCallback(() => {
@@ -1009,8 +673,7 @@ export default function SmartBoard() {
   };
 
   const addSlide = () => {
-    const newSlide: NoteSlide = { id: Date.now().toString(), title: `Slide ${slides.length + 1}`, content: "" };
-    setSlides([...slides, newSlide]);
+    setSlides([...slides, { id: Date.now().toString(), title: `Slide ${slides.length + 1}`, content: "" }]);
     setCurrentSlide(slides.length);
   };
 
@@ -1029,44 +692,26 @@ export default function SmartBoard() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      <BoardSettingsModal
-        isOpen={showSettingsModal}
-        onClose={() => setShowSettingsModal(false)}
-        bgColor={bgColor}
-        onBgColorChange={setBgColor}
-        canvasSize={canvasSize}
-        onCanvasSizeChange={setCanvasSize}
-        gridType={gridType}
-        onGridTypeChange={setGridType}
-      />
+      <BoardSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} bgColor={bgColor} onBgColorChange={setBgColor} gridType={gridType} onGridTypeChange={setGridType} />
 
-      <header className="flex items-center justify-between p-4 border-b bg-card flex-shrink-0">
+      <header className="flex items-center justify-between px-6 py-3 border-b bg-card flex-shrink-0">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-bold">LCIT ET</h1>
-          <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+          <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
             <ViewModeButton mode="notes" currentMode={viewMode} onClick={() => setViewMode("notes")} icon={FileText} label="Notes" />
             <ViewModeButton mode="whiteboard" currentMode={viewMode} onClick={() => setViewMode("whiteboard")} icon={PenTool} label="Board" />
             <ViewModeButton mode="both" currentMode={viewMode} onClick={() => setViewMode("both")} icon={Columns} label="Both" />
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-lg">
-            <span className="font-medium">Shortcuts:</span>
-            <span>F Fullscreen</span>
-            <span>1/2/3 Modes</span>
-          </div>
-          <button
-            onClick={() => loadFolderStructure(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors text-sm"
-          >
-            {isLoadingFiles ? <Loader2 className="w-4 h-4 animate-spin" /> : <Folder className="w-4 h-4 text-primary" />}
-            <span className="hidden md:inline">Drive</span>
+        <div className="flex items-center gap-3">
+          <button onClick={() => loadFolderStructure()} className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors text-sm">
+            {isLoadingFiles ? <Loader2 className="w-4 h-4 animate-spin" /> : <Folder className="w-4 h-4" />}
+            <span className="hidden md:inline">Files</span>
           </button>
-          <button
-            onClick={toggleFullscreen}
-            className="p-2 hover:bg-secondary rounded-lg transition-colors"
-            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-          >
+          <button onClick={() => setShowSettingsModal(true)} className="p-2 hover:bg-secondary rounded-lg transition-colors" title="Settings">
+            <Settings className="w-5 h-5" />
+          </button>
+          <button onClick={toggleFullscreen} className="p-2 hover:bg-secondary rounded-lg transition-colors">
             {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
           </button>
         </div>
@@ -1076,81 +721,27 @@ export default function SmartBoard() {
         {viewMode === "notes" && (
           <div className="w-full">
             {viewingFile ? (
-              viewingFile.mimeType === "application/pdf" ? (
-                <PDFViewer file={viewingFile} onClose={() => setViewingFile(null)} />
-              ) : (
-                <ImageViewer file={viewingFile} onClose={() => setViewingFile(null)} />
-              )
+              viewingFile.mimeType === "application/pdf" ? <PDFViewer file={viewingFile} onClose={() => setViewingFile(null)} /> : <ImageViewer file={viewingFile} onClose={() => setViewingFile(null)} />
             ) : (
-              <NotesPanel
-                slides={slides}
-                currentSlide={currentSlide}
-                onSlideChange={setCurrentSlide}
-                onAddSlide={addSlide}
-                onDeleteSlide={deleteSlide}
-                onUpdateSlide={updateSlide}
-                folderStructure={folderStructure}
-                onFileClick={handleFileClick}
-                onFolderClick={handleFolderClick}
-                isLoadingFiles={isLoadingFiles}
-                onRefreshFiles={() => loadFolderStructure()}
-                expandedFolders={expandedFolders}
-              />
+              <NotesPanel slides={slides} currentSlide={currentSlide} onSlideChange={setCurrentSlide} onAddSlide={addSlide} onDeleteSlide={deleteSlide} onUpdateSlide={updateSlide} folderStructure={folderStructure} onFileClick={(f) => setViewingFile(f)} onFolderClick={handleFolderClick} isLoadingFiles={isLoadingFiles} onRefreshFiles={loadFolderStructure} expandedFolders={expandedFolders} />
             )}
           </div>
         )}
         {viewMode === "whiteboard" && (
-          <div className="w-full">
-            <WhiteboardPanel
-              onOpenSettings={() => setShowSettingsModal(true)}
-              bgColor={bgColor}
-              gridType={gridType}
-              currentColor={currentColor}
-              onColorChange={setCurrentColor}
-              strokeWidth={strokeWidth}
-              onStrokeWidthChange={setStrokeWidth}
-              onSaveComplete={() => loadFolderStructure(true)}
-            />
-          </div>
+          <div className="w-full"><WhiteboardPanel bgColor={bgColor} gridType={gridType} currentColor={currentColor} onColorChange={setCurrentColor} strokeWidth={strokeWidth} onStrokeWidthChange={setStrokeWidth} /></div>
         )}
         {viewMode === "both" && (
           <>
             <div style={{ width: `${splitRatio}%` }} className="flex flex-col">
               {viewingFile ? (
-                viewingFile.mimeType === "application/pdf" ? (
-                  <PDFViewer file={viewingFile} onClose={() => setViewingFile(null)} />
-                ) : (
-                  <ImageViewer file={viewingFile} onClose={() => setViewingFile(null)} />
-                )
+                viewingFile.mimeType === "application/pdf" ? <PDFViewer file={viewingFile} onClose={() => setViewingFile(null)} /> : <ImageViewer file={viewingFile} onClose={() => setViewingFile(null)} />
               ) : (
-                <NotesPanel
-                  slides={slides}
-                  currentSlide={currentSlide}
-                  onSlideChange={setCurrentSlide}
-                  onAddSlide={addSlide}
-                  onDeleteSlide={deleteSlide}
-                  onUpdateSlide={updateSlide}
-                  folderStructure={folderStructure}
-                  onFileClick={handleFileClick}
-                  onFolderClick={handleFolderClick}
-                  isLoadingFiles={isLoadingFiles}
-                  onRefreshFiles={() => loadFolderStructure()}
-                  expandedFolders={expandedFolders}
-                />
+                <NotesPanel slides={slides} currentSlide={currentSlide} onSlideChange={setCurrentSlide} onAddSlide={addSlide} onDeleteSlide={deleteSlide} onUpdateSlide={updateSlide} folderStructure={folderStructure} onFileClick={(f) => setViewingFile(f)} onFolderClick={handleFolderClick} isLoadingFiles={isLoadingFiles} onRefreshFiles={loadFolderStructure} expandedFolders={expandedFolders} />
               )}
             </div>
             <ResizeHandle onMouseDown={handleResizeStart} />
             <div style={{ width: `${100 - splitRatio}%` }}>
-              <WhiteboardPanel
-                onOpenSettings={() => setShowSettingsModal(true)}
-                bgColor={bgColor}
-                gridType={gridType}
-                currentColor={currentColor}
-                onColorChange={setCurrentColor}
-                strokeWidth={strokeWidth}
-                onStrokeWidthChange={setStrokeWidth}
-                onSaveComplete={() => loadFolderStructure(true)}
-              />
+              <WhiteboardPanel bgColor={bgColor} gridType={gridType} currentColor={currentColor} onColorChange={setCurrentColor} strokeWidth={strokeWidth} onStrokeWidthChange={setStrokeWidth} />
             </div>
           </>
         )}
