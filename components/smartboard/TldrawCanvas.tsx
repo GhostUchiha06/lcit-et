@@ -106,11 +106,13 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
           onMount={handleMount} 
           autoFocus 
           components={{ 
-            DebugMenu: null,
-            DebugPanel: null,
-            SharePanel: null,
-            TopPanel: null,
-            HelperButtons: null,
+            DebugMenu: () => null,
+            DebugPanel: () => null,
+            SharePanel: () => null,
+            TopPanel: () => null,
+            HelperButtons: () => null,
+            TldrawToolbar: () => null,
+            ToolButton: () => null,
           }} 
         />
       </div>
