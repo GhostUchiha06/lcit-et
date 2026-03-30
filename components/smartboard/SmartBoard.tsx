@@ -850,7 +850,7 @@ export default function SmartBoard() {
 
       <header className="flex items-center justify-between p-4 border-b bg-card">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">Motherfucker</h1>
+          <h1 className="text-xl font-bold">LCIT ET</h1>
           <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
             <ViewModeButton mode="notes" currentMode={viewMode} onClick={() => setViewMode("notes")} icon={FileText} label="Notes" />
             <ViewModeButton mode="whiteboard" currentMode={viewMode} onClick={() => setViewMode("whiteboard")} icon={PenTool} label="Board" />
