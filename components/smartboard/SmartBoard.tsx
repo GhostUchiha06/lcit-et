@@ -801,6 +801,26 @@ function WhiteboardToolbar({
 
   return (
     <div className="absolute bottom-4 md:bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 z-50">
+      {showShapes && (
+        <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-3 grid grid-cols-4 gap-3 min-w-[200px] z-[60]">
+          {shapeOptions.map((shape) => {
+            const Icon = shape.icon;
+            return (
+              <button
+                key={shape.id}
+                onClick={() => { onShapeChange(shape.id); setShowShapes(false); }}
+                className={cn(
+                  "p-3 rounded-xl transition-all hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center",
+                  currentShape === shape.id ? "bg-blue-500 text-white" : "text-gray-700 dark:text-gray-200"
+                )}
+                title={shape.label}
+              >
+                <Icon className="w-6 h-6" />
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 flex items-center gap-1 overflow-x-auto scrollbar-hide max-w-full md:max-w-none justify-center md:justify-start">
         <button onClick={onUndo} disabled={!canUndo} className={cn("p-2.5 rounded-xl transition-all flex-shrink-0", canUndo ? "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200" : "text-gray-300 dark:text-gray-600")}>
           <Undo2 className="w-5 h-5" />
@@ -812,45 +832,23 @@ function WhiteboardToolbar({
         <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
 
         {tools.map((tool) => (
-          <div key={tool.id} className="relative flex-shrink-0" style={{ overflow: 'visible' }}>
+          <div key={tool.id} className="relative flex-shrink-0">
             {tool.id === "geo" ? (
-              <>
-                <button
-                  onClick={() => { onToolChange(tool.id); setShowShapes(!showShapes); setShowExportMenu(false); }}
-                  className={cn(
-                    "p-2.5 rounded-xl transition-all flex items-center gap-1",
-                    currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
-                  )}
-                  title={tool.label}
-                >
-                  {(() => {
-                    const shape = shapeOptions.find(s => s.id === currentShape);
-                    const Icon = shape?.icon || Square;
-                    return <Icon className="w-5 h-5" />;
-                  })()}
-                  <ChevronDown className="w-3 h-3" />
-                </button>
-                {showShapes && (
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 grid grid-cols-4 gap-3 min-w-[180px] z-50">
-                    {shapeOptions.map((shape) => {
-                      const Icon = shape.icon;
-                      return (
-                        <button
-                          key={shape.id}
-                          onClick={() => { onShapeChange(shape.id); setShowShapes(false); }}
-                          className={cn(
-                            "p-3 rounded-xl transition-all hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center",
-                            currentShape === shape.id ? "bg-blue-500 text-white" : "text-gray-700 dark:text-gray-200"
-                          )}
-                          title={shape.label}
-                        >
-                          <Icon className="w-6 h-6" />
-                        </button>
-                      );
-                    })}
-                  </div>
+              <button
+                onClick={() => { onToolChange(tool.id); setShowShapes(!showShapes); setShowExportMenu(false); }}
+                className={cn(
+                  "p-2.5 rounded-xl transition-all flex items-center gap-1",
+                  currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
                 )}
-              </>
+                title={tool.label}
+              >
+                {(() => {
+                  const shape = shapeOptions.find(s => s.id === currentShape);
+                  const Icon = shape?.icon || Square;
+                  return <Icon className="w-5 h-5" />;
+                })()}
+                <ChevronDown className="w-3 h-3" />
+              </button>
             ) : (
               <button
                 onClick={() => { onToolChange(tool.id); setShowShapes(false); setShowExportMenu(false); }}
