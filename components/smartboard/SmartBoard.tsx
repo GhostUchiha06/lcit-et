@@ -48,6 +48,12 @@ import {
   BarChart3,
   Target,
   Sparkles,
+  Hexagon,
+  Star,
+  MessageSquare,
+  CheckSquare,
+  Triangle,
+  Minus,
 } from "lucide-react";
 
 function ViewModeButton({
@@ -120,7 +126,7 @@ export interface TemplateElement {
   content?: string;
   color?: string;
   fontSize?: number;
-  shapeType?: "rectangle" | "circle" | "arrow" | "diamond" | "triangle" | "line";
+  shapeType?: string;
   iconType?: "brain" | "lightbulb" | "chart" | "target";
   style?: Record<string, any>;
 }
@@ -148,8 +154,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 400, y: 300 },
         size: { width: 200, height: 80 },
         elements: [
-          { type: "text", content: "Central Topic", fontSize: 20, style: { fontWeight: "bold" } },
-          { type: "shape", shapeType: "circle" },
+          { type: "shape", shapeType: "ellipse" },
         ],
       },
       {
@@ -157,7 +162,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 100, y: 150 },
         size: { width: 150, height: 60 },
         elements: [
-          { type: "sticky_note", content: "Idea", color: "#FFF3B0", fontSize: 14 },
+          { type: "sticky_note", content: "Idea 1", color: "#FFF3B0" },
         ],
       },
       {
@@ -165,7 +170,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 650, y: 150 },
         size: { width: 150, height: 60 },
         elements: [
-          { type: "sticky_note", content: "Idea", color: "#FECACA", fontSize: 14 },
+          { type: "sticky_note", content: "Idea 2", color: "#FECACA" },
         ],
       },
       {
@@ -173,7 +178,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 100, y: 450 },
         size: { width: 150, height: 60 },
         elements: [
-          { type: "sticky_note", content: "Idea", color: "#BAE6FD", fontSize: 14 },
+          { type: "sticky_note", content: "Idea 3", color: "#BAE6FD" },
         ],
       },
       {
@@ -181,7 +186,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 650, y: 450 },
         size: { width: 150, height: 60 },
         elements: [
-          { type: "sticky_note", content: "Idea", color: "#BBF7D0", fontSize: 14 },
+          { type: "sticky_note", content: "Idea 4", color: "#BBF7D0" },
         ],
       },
     ],
@@ -199,9 +204,8 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 50, y: 100 },
         size: { width: 250, height: 400 },
         elements: [
-          { type: "sticky_note", content: "Task 1", color: "#FEE2E2", fontSize: 14 },
-          { type: "sticky_note", content: "Task 2", color: "#FEE2E2", fontSize: 14 },
-          { type: "sticky_note", content: "Task 3", color: "#FEE2E2", fontSize: 14 },
+          { type: "sticky_note", content: "Task 1", color: "#FEE2E2" },
+          { type: "sticky_note", content: "Task 2", color: "#FEE2E2" },
         ],
       },
       {
@@ -209,8 +213,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 320, y: 100 },
         size: { width: 250, height: 400 },
         elements: [
-          { type: "sticky_note", content: "Task 4", color: "#FEF3C7", fontSize: 14 },
-          { type: "sticky_note", content: "Task 5", color: "#FEF3C7", fontSize: 14 },
+          { type: "sticky_note", content: "Task 3", color: "#FEF3C7" },
         ],
       },
       {
@@ -218,60 +221,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 590, y: 100 },
         size: { width: 250, height: 400 },
         elements: [
-          { type: "sticky_note", content: "Task 6", color: "#DCFCE7", fontSize: 14 },
-          { type: "sticky_note", content: "Task 7", color: "#DCFCE7", fontSize: 14 },
-        ],
-      },
-    ],
-  },
-  {
-    id: "timeline",
-    name: "Timeline",
-    description: "Project timeline view",
-    icon: ArrowRight,
-    type: "planning",
-    theme: { bgColor: "#f0f8ff", gridType: "dots", accentColor: "#7c3aed" },
-    sections: [
-      {
-        title: "Start",
-        position: { x: 100, y: 280 },
-        size: { width: 120, height: 60 },
-        elements: [
-          { type: "shape", shapeType: "circle" },
-          { type: "text", content: "Start", fontSize: 14 },
-        ],
-      },
-      {
-        title: "Phase 1",
-        position: { x: 280, y: 280 },
-        size: { width: 150, height: 80 },
-        elements: [
-          { type: "sticky_note", content: "Phase 1", color: "#E0E7FF", fontSize: 14 },
-        ],
-      },
-      {
-        title: "Phase 2",
-        position: { x: 480, y: 280 },
-        size: { width: 150, height: 80 },
-        elements: [
-          { type: "sticky_note", content: "Phase 2", color: "#FEF3C7", fontSize: 14 },
-        ],
-      },
-      {
-        title: "Phase 3",
-        position: { x: 680, y: 280 },
-        size: { width: 150, height: 80 },
-        elements: [
-          { type: "sticky_note", content: "Phase 3", color: "#DCFCE7", fontSize: 14 },
-        ],
-      },
-      {
-        title: "End",
-        position: { x: 880, y: 280 },
-        size: { width: 120, height: 60 },
-        elements: [
-          { type: "shape", shapeType: "circle" },
-          { type: "text", content: "End", fontSize: 14 },
+          { type: "sticky_note", content: "Task 4", color: "#DCFCE7" },
         ],
       },
     ],
@@ -279,7 +229,7 @@ const templates: WhiteboardTemplate[] = [
   {
     id: "swot",
     name: "SWOT Analysis",
-    description: "Strengths, Weaknesses, Opportunities, Threats",
+    description: "Strategic planning matrix",
     icon: Target,
     type: "planning",
     theme: { bgColor: "#ffffff", gridType: "dots", accentColor: "#16a34a" },
@@ -289,8 +239,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 50, y: 80 },
         size: { width: 360, height: 180 },
         elements: [
-          { type: "sticky_note", content: "Strength 1", color: "#DCFCE7", fontSize: 14 },
-          { type: "sticky_note", content: "Strength 2", color: "#DCFCE7", fontSize: 14 },
+          { type: "sticky_note", content: "Strength 1", color: "#DCFCE7" },
         ],
       },
       {
@@ -298,8 +247,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 430, y: 80 },
         size: { width: 360, height: 180 },
         elements: [
-          { type: "sticky_note", content: "Weakness 1", color: "#FEE2E2", fontSize: 14 },
-          { type: "sticky_note", content: "Weakness 2", color: "#FEE2E2", fontSize: 14 },
+          { type: "sticky_note", content: "Weakness 1", color: "#FEE2E2" },
         ],
       },
       {
@@ -307,8 +255,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 50, y: 320 },
         size: { width: 360, height: 180 },
         elements: [
-          { type: "sticky_note", content: "Opportunity 1", color: "#BAE6FD", fontSize: 14 },
-          { type: "sticky_note", content: "Opportunity 2", color: "#BAE6FD", fontSize: 14 },
+          { type: "sticky_note", content: "Opportunity 1", color: "#BAE6FD" },
         ],
       },
       {
@@ -316,8 +263,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 430, y: 320 },
         size: { width: 360, height: 180 },
         elements: [
-          { type: "sticky_note", content: "Threat 1", color: "#FEF3C7", fontSize: 14 },
-          { type: "sticky_note", content: "Threat 2", color: "#FEF3C7", fontSize: 14 },
+          { type: "sticky_note", content: "Threat 1", color: "#FEF3C7" },
         ],
       },
     ],
@@ -335,7 +281,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 100, y: 100 },
         size: { width: 800, height: 100 },
         elements: [
-          { type: "text", content: "Presentation Title", fontSize: 48, style: { fontWeight: "bold", color: "#ffffff" } },
+          { type: "text", content: "Presentation Title", fontSize: 48, style: { color: "#ffffff" } },
         ],
       },
       {
@@ -343,18 +289,7 @@ const templates: WhiteboardTemplate[] = [
         position: { x: 100, y: 220 },
         size: { width: 800, height: 60 },
         elements: [
-          { type: "text", content: "Subtitle or description here", fontSize: 24, style: { color: "#94a3b8" } },
-        ],
-      },
-      {
-        title: "Content",
-        position: { x: 100, y: 350 },
-        size: { width: 800, height: 200 },
-        elements: [
-          { type: "text", content: "Key points:", fontSize: 18, style: { color: "#ffffff" } },
-          { type: "sticky_note", content: "Point 1", color: "#2563eb", fontSize: 14 },
-          { type: "sticky_note", content: "Point 2", color: "#7c3aed", fontSize: 14 },
-          { type: "sticky_note", content: "Point 3", color: "#16a34a", fontSize: 14 },
+          { type: "text", content: "Subtitle here", fontSize: 24, style: { color: "#94a3b8" } },
         ],
       },
     ],
@@ -763,27 +698,29 @@ function ImageViewer({ file, onClose }: { file: DriveFile; onClose: () => void }
   );
 }
 
-type Tool = "select" | "draw" | "highlight" | "eraser" | "brush-eraser" | "geo" | "arrow" | "text" | "note";
+type Tool = "select" | "draw" | "highlight" | "eraser" | "geo" | "arrow" | "line" | "text" | "note";
 
 const tools = [
   { id: "select" as Tool, icon: MousePointer2, label: "Select" },
   { id: "draw" as Tool, icon: Pencil, label: "Pen" },
   { id: "highlight" as Tool, icon: Highlighter, label: "Highlighter" },
-  { id: "eraser" as Tool, icon: Eraser, label: "Shape Eraser" },
-  { id: "brush-eraser" as Tool, icon: Trash2, label: "Brush Eraser" },
+  { id: "eraser" as Tool, icon: Eraser, label: "Eraser" },
   { id: "geo" as Tool, icon: Square, label: "Shapes" },
+  { id: "line" as Tool, icon: Minus, label: "Line" },
   { id: "arrow" as Tool, icon: ArrowRight, label: "Arrow" },
   { id: "text" as Tool, icon: Type, label: "Text" },
   { id: "note" as Tool, icon: StickyNote, label: "Sticky Note" },
 ];
 
 const shapeOptions = [
-  { id: "rectangle", label: "Rectangle" },
-  { id: "ellipse", label: "Ellipse" },
-  { id: "diamond", label: "Diamond" },
-  { id: "triangle", label: "Triangle" },
-  { id: "line", label: "Line" },
-  { id: "arrow", label: "Arrow" },
+  { id: "rectangle", label: "Rectangle", icon: Square },
+  { id: "ellipse", label: "Ellipse", icon: Circle },
+  { id: "diamond", label: "Diamond", icon: Square },
+  { id: "triangle", label: "Triangle", icon: Triangle },
+  { id: "hexagon", label: "Hexagon", icon: Hexagon },
+  { id: "star", label: "Star", icon: Star },
+  { id: "chat", label: "Chat", icon: MessageSquare },
+  { id: "checkbox", label: "Checkbox", icon: CheckSquare },
 ];
 
 function WhiteboardToolbar({
@@ -806,6 +743,8 @@ function WhiteboardToolbar({
   onNextPage,
   currentPage,
   pageCount,
+  gridType,
+  onGridTypeChange,
 }: {
   currentTool: Tool;
   onToolChange: (tool: Tool) => void;
@@ -826,10 +765,20 @@ function WhiteboardToolbar({
   onNextPage: () => void;
   currentPage: number;
   pageCount: number;
+  gridType: "dots" | "lines" | "none";
+  onGridTypeChange: (type: "dots" | "lines" | "none") => void;
 }) {
   const [showColors, setShowColors] = useState(false);
   const [showShapes, setShowShapes] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+
+  const toggleGrid = () => {
+    if (gridType === "none") {
+      onGridTypeChange("dots");
+    } else {
+      onGridTypeChange("none");
+    }
+  };
 
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
@@ -858,18 +807,19 @@ function WhiteboardToolbar({
                   <tool.icon className="w-5 h-5" />
                 </button>
                 {showShapes && currentTool === "geo" && (
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 flex gap-1">
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 grid grid-cols-4 gap-1">
                     {shapeOptions.map((shape) => (
                       <button
                         key={shape.id}
                         onClick={() => { onShapeChange(shape.id); setShowShapes(false); }}
                         className={cn(
-                          "px-3 py-2 rounded-lg transition-all text-xs",
+                          "p-2 rounded-lg transition-all flex flex-col items-center gap-1",
                           currentShape === shape.id ? "bg-blue-500 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800"
                         )}
                         title={shape.label}
                       >
-                        {shape.id.charAt(0).toUpperCase() + shape.id.slice(1)}
+                        <shape.icon className="w-5 h-5" />
+                        <span className="text-[10px]">{shape.label}</span>
                       </button>
                     ))}
                   </div>
@@ -930,6 +880,19 @@ function WhiteboardToolbar({
           />
           <span className="text-xs text-gray-500 w-5">{strokeWidth}</span>
         </div>
+
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
+
+        <button
+          onClick={toggleGrid}
+          className={cn(
+            "p-2.5 rounded-xl transition-all",
+            gridType !== "none" ? "bg-blue-500 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+          )}
+          title={gridType === "none" ? "Show Grid" : "Hide Grid"}
+        >
+          <Grid3X3 className="w-5 h-5" />
+        </button>
 
         <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
 
@@ -1027,10 +990,7 @@ function WhiteboardPanel({
     editor.clearPages();
     editor.addPage({ name: tmpl.name });
     
-    const pageId = editor.getCurrentPageId();
-    
-    const bgColor = tmpl.theme.bgColor;
-    onBgColorChange(bgColor);
+    onBgColorChange(tmpl.theme.bgColor);
     onGridTypeChange(tmpl.theme.gridType);
     
     tmpl.sections.forEach((section, index) => {
@@ -1046,28 +1006,27 @@ function WhiteboardPanel({
             },
           });
         } else if (el.type === "shape") {
+          const geoMap: Record<string, string> = {
+            rectangle: "rectangle",
+            ellipse: "ellipse",
+            diamond: "diamond",
+            triangle: "triangle",
+            hexagon: "hexagon",
+            star: "star",
+            chat: "arrow",
+            checkbox: "rectangle",
+          };
           editor.createShape({
             type: "geo",
             x: section.position.x,
             y: section.position.y,
             props: {
-              geo: el.shapeType || "rectangle",
+              geo: geoMap[el.shapeType || "rectangle"] || "rectangle",
               w: section.size.width,
               h: section.size.height,
               fill: tmpl.theme.accentColor,
             },
           });
-          if (el.content) {
-            editor.createShape({
-              type: "text",
-              x: section.position.x + 10,
-              y: section.position.y + 10,
-              props: {
-                text: el.content,
-                fontSize: el.fontSize || 14,
-              },
-            });
-          }
         } else if (el.type === "text") {
           editor.createShape({
             type: "text",
@@ -1156,9 +1115,9 @@ function WhiteboardPanel({
       draw: "draw",
       highlight: "highlight",
       eraser: "eraser",
-      "brush-eraser": "eraser",
       geo: "geo",
       arrow: "arrow",
+      line: "line",
       text: "text",
       note: "note",
     };
@@ -1211,6 +1170,8 @@ function WhiteboardPanel({
         onNextPage={handleNextPage}
         currentPage={currentPage}
         pageCount={pages.length}
+        gridType={gridType}
+        onGridTypeChange={onGridTypeChange}
       />
     </div>
   );
