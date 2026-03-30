@@ -271,6 +271,12 @@ function LayersPanel({
   selectedObjectIds,
   onSelectObject,
   onDeleteObject,
+  position,
+  onPositionChange,
+  isCollapsed,
+  onToggleCollapse,
+  panelWidth,
+  onWidthChange,
 }: {
   layers: Layer[];
   currentLayerId: string;
@@ -285,10 +291,20 @@ function LayersPanel({
   selectedObjectIds: string[];
   onSelectObject: (id: string) => void;
   onDeleteObject: (layerId: string, objectId: string) => void;
+  position: { x: number; y: number };
+  onPositionChange: (pos: { x: number; y: number }) => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  panelWidth: number;
+  onWidthChange: (width: number) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [expandedLayers, setExpandedLayers] = useState<Set<string>>(new Set([currentLayerId]));
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -337,21 +353,97 @@ function LayersPanel({
     });
   };
 
+  const handleDragStart = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.no-drag')) return;
+    setIsDragging(true);
+    setDragOffset({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    });
+  };
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    if (!isDragging && !isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        onPositionChange({
+          x: Math.max(0, Math.min(window.innerWidth - panelWidth - 20, e.clientX - dragOffset.x)),
+          y: Math.max(0, Math.min(window.innerHeight - 100, e.clientY - dragOffset.y)),
+        });
+      } else if (isResizing) {
+        const newWidth = Math.max(200, Math.min(500, e.clientX - position.x));
+        onWidthChange(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setIsResizing(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, isResizing, dragOffset, position, panelWidth, onPositionChange, onWidthChange]);
+
+  if (isCollapsed) {
+    return (
+      <button
+        onClick={onToggleCollapse}
+        className="absolute z-30 w-12 h-12 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        style={{ left: position.x, top: position.y }}
+      >
+        <Layers className="w-6 h-6" />
+      </button>
+    );
+  }
+
   return (
-    <div className="absolute top-4 right-4 z-30 w-72 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div className="flex items-center justify-between p-3 border-b bg-gray-50 dark:bg-gray-800">
+    <div
+      ref={panelRef}
+      className="absolute z-30 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden select-none"
+      style={{
+        left: position.x,
+        top: position.y,
+        width: panelWidth,
+        cursor: isDragging ? 'grabbing' : 'default',
+      }}
+    >
+      <div
+        className="flex items-center justify-between p-3 border-b bg-gray-50 dark:bg-gray-800 cursor-grab active:cursor-grabbing no-drag"
+        onMouseDown={handleDragStart}
+      >
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4" />
           <span className="font-medium text-sm">Layers</span>
           <span className="text-xs text-muted-foreground">({layers.length})</span>
         </div>
-        <button
-          onClick={onAddLayer}
-          className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          title="Add Layer"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1 no-drag">
+          <button
+            onClick={onAddLayer}
+            className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            title="Add Layer"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onToggleCollapse}
+            className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            title="Collapse"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        </div>
       </div>
       <div className="max-h-[70vh] overflow-y-auto">
         {[...layers].reverse().map((layer) => (
@@ -446,7 +538,7 @@ function LayersPanel({
             </div>
             
             {expandedLayers.has(layer.id) && layer.objects.length > 0 && (
-              <div className="bg-gray-50 dark:bg-gray-800/50 p-2 space-y-1">
+              <div className="bg-gray-50 dark:bg-gray-800/50 p-2 space-y-1 max-h-64 overflow-y-auto">
                 {layer.objects.map((obj, idx) => {
                   const Icon = getTypeIcon(obj.type);
                   const objWidth = getObjectWidth(obj);
@@ -493,6 +585,10 @@ function LayersPanel({
           </div>
         ))}
       </div>
+      <div
+        className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-blue-500/20 transition-colors no-drag"
+        onMouseDown={handleResizeStart}
+      />
     </div>
   );
 }
@@ -533,6 +629,9 @@ export default function TldrawCanvas({
   const [isErasing, setIsErasing] = useState(false);
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [copiedObjects, setCopiedObjects] = useState<DrawObject[]>([]);
+  const [layerPanelPosition, setLayerPanelPosition] = useState({ x: 16, y: 16 });
+  const [layerPanelCollapsed, setLayerPanelCollapsed] = useState(false);
+  const [layerPanelWidth, setLayerPanelWidth] = useState(288);
 
   const currentLayer = layers.find(l => l.id === currentLayerId);
   const activeObjects = currentLayer?.objects || [];
@@ -1303,6 +1402,12 @@ export default function TldrawCanvas({
         selectedObjectIds={selectedObjectIds}
         onSelectObject={(id) => setSelectedObjectIds([id])}
         onDeleteObject={deleteObject}
+        position={layerPanelPosition}
+        onPositionChange={setLayerPanelPosition}
+        isCollapsed={layerPanelCollapsed}
+        onToggleCollapse={() => setLayerPanelCollapsed(!layerPanelCollapsed)}
+        panelWidth={layerPanelWidth}
+        onWidthChange={setLayerPanelWidth}
       />
     </div>
   );
