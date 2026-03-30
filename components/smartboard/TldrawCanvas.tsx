@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import { Eye, EyeOff, Lock, Unlock, Trash2, Plus, ChevronDown, ChevronUp, Layers, Square, Circle, Triangle, Minus, ArrowRight, Pencil, Type, StickyNote } from "lucide-react";
+import { Eye, EyeOff, Lock, Unlock, Trash2, Plus, ChevronDown, ChevronUp, Layers, Square, Circle, Triangle, Minus, ArrowRight, Pencil, Type, StickyNote, Star, MessageSquare, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "brushEraser" | "geo" | "line" | "arrow" | "text" | "note";
+type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "brushEraser" | "geo" | "line" | "arrow" | "text" | "note" | "hexagon" | "star" | "chat" | "checkbox";
 type LineStyle = "solid" | "dashed" | "dotted";
 
 interface Point { x: number; y: number; }
@@ -78,6 +78,10 @@ function hitTest(o: DrawObject, px: number, py: number, eraserSize = 24) {
   switch (o.type) {
     case 'rect':
     case 'circle':
+    case 'hexagon':
+    case 'star':
+    case 'chat':
+    case 'checkbox':
       return px >= (o.x || 0) - T && px <= (o.x || 0) + (o.w2 || 0) + T && py >= (o.y || 0) - T && py <= (o.y || 0) + (o.h || 0) + T;
     case 'line':
     case 'arrow':
@@ -148,6 +152,10 @@ function getTypeIcon(type: string) {
     case 'path': return Pencil;
     case 'text': return Type;
     case 'diamond': return Square;
+    case 'hexagon': return Square;
+    case 'star': return Star;
+    case 'chat': return MessageSquare;
+    case 'checkbox': return CheckSquare;
     default: return Square;
   }
 }
@@ -212,6 +220,83 @@ function ObjectThumbnail({ obj, size = 40 }: { obj: DrawObject; size?: number })
         if (obj.fc !== "transparent") ctx.fill();
         ctx.stroke();
         break;
+      case "hexagon": {
+        const hcx = obj.cx || 0;
+        const hcy = obj.cy || 0;
+        const hrx = obj.rx || 0;
+        const hry = obj.ry || 0;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i - Math.PI / 2;
+          const px = hcx + hrx * Math.cos(angle);
+          const py = hcy + hry * Math.sin(angle);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        if (obj.fc !== "transparent") ctx.fill();
+        ctx.stroke();
+        break;
+      }
+      case "star": {
+        const scx = obj.cx || 0;
+        const scy = obj.cy || 0;
+        const srx = obj.rx || 0;
+        const sry = obj.ry || 0;
+        const outerRadius = Math.max(srx, sry);
+        const innerRadius = outerRadius * 0.4;
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const radius = i % 2 === 0 ? outerRadius : innerRadius;
+          const angle = (Math.PI / 5) * i - Math.PI / 2;
+          const px = scx + radius * Math.cos(angle);
+          const py = scy + radius * Math.sin(angle);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        if (obj.fc !== "transparent") ctx.fill();
+        ctx.stroke();
+        break;
+      }
+      case "chat": {
+        const chatX = obj.x || 0;
+        const chatY = obj.y || 0;
+        const chatW = obj.w2 || 50;
+        const chatH = obj.h || 40;
+        const radius = 8;
+        ctx.beginPath();
+        ctx.moveTo(chatX + radius, chatY);
+        ctx.lineTo(chatX + chatW - radius, chatY);
+        ctx.quadraticCurveTo(chatX + chatW, chatY, chatX + chatW, chatY + radius);
+        ctx.lineTo(chatX + chatW, chatY + chatH - radius);
+        ctx.quadraticCurveTo(chatX + chatW, chatY + chatH, chatX + chatW - radius, chatY + chatH);
+        ctx.lineTo(chatX + 15, chatY + chatH);
+        ctx.lineTo(chatX + 5, chatY + chatH + 10);
+        ctx.lineTo(chatX + 10, chatY + chatH);
+        ctx.lineTo(chatX + radius, chatY + chatH);
+        ctx.quadraticCurveTo(chatX, chatY + chatH, chatX, chatY + chatH - radius);
+        ctx.lineTo(chatX, chatY + radius);
+        ctx.quadraticCurveTo(chatX, chatY, chatX + radius, chatY);
+        ctx.closePath();
+        if (obj.fc !== "transparent") ctx.fill();
+        ctx.stroke();
+        break;
+      }
+      case "checkbox": {
+        const cbX = obj.x || 0;
+        const cbY = obj.y || 0;
+        const cbW = obj.w2 || 40;
+        const cbH = obj.h || 40;
+        ctx.strokeRect(cbX, cbY, cbW, cbH);
+        if (obj.fc !== "transparent") ctx.fillRect(cbX, cbY, cbW, cbH);
+        ctx.beginPath();
+        ctx.moveTo(cbX + cbW * 0.2, cbY + cbH * 0.5);
+        ctx.lineTo(cbX + cbW * 0.4, cbY + cbH * 0.7);
+        ctx.lineTo(cbX + cbW * 0.8, cbY + cbH * 0.3);
+        ctx.stroke();
+        break;
+      }
       case "line":
       case "arrow":
         ctx.beginPath();
@@ -643,10 +728,10 @@ export default function TldrawCanvas({
     ellipse: "circle",
     diamond: "diamond",
     triangle: "triangle",
-    hexagon: "rect",
-    star: "rect",
-    chat: "arrow",
-    checkbox: "rect",
+    hexagon: "hexagon",
+    star: "star",
+    chat: "chat",
+    checkbox: "checkbox",
   };
 
   const activeTool: Tool = currentTool === "geo" ? (toolMap[currentShape] || "rect") as Tool : currentTool as Tool;
@@ -923,6 +1008,22 @@ export default function TldrawCanvas({
         const cx = x + ww / 2;
         const cy = y + hh / 2;
         return { ...base, type: "diamond", cx, cy, rx: ww / 2, ry: hh / 2 };
+      }
+      case "hexagon": {
+        const cx = x + ww / 2;
+        const cy = y + hh / 2;
+        return { ...base, type: "hexagon", cx, cy, rx: ww / 2, ry: hh / 2 };
+      }
+      case "star": {
+        const cx = x + ww / 2;
+        const cy = y + hh / 2;
+        return { ...base, type: "star", cx, cy, rx: ww / 2, ry: hh / 2 };
+      }
+      case "chat": {
+        return { ...base, type: "chat", x, y, w2: ww, h: hh };
+      }
+      case "checkbox": {
+        return { ...base, type: "checkbox", x, y, w2: ww, h: hh };
       }
       default:
         return { ...base, type: "rect", x, y, w2: ww, h: hh };
