@@ -633,7 +633,6 @@ function WhiteboardPanel({ onOpenSettings, bgColor, gridType, strokeWidth, erase
       <div className="flex items-center justify-between p-4 border-b bg-card">
         <div className="flex items-center gap-2">
           <h2 className="font-semibold flex items-center gap-2"><PenTool className="w-5 h-5" />Whiteboard</h2>
-          <DrawingToolbar strokeWidth={strokeWidth} onStrokeWidthChange={() => {}} eraserSize={eraserSize} onEraserSizeChange={() => {}} eraserSoftness={eraserSoftness} onEraserSoftnessChange={() => {}} currentTool={currentTool} onToolChange={onToolChange} />
         </div>
         <div className="flex items-center gap-2">
           <button onClick={onOpenSettings} className="flex items-center gap-2 px-3 py-1.5 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors text-sm" title="Board Settings"><Settings className="w-4 h-4" /></button>
@@ -642,6 +641,9 @@ function WhiteboardPanel({ onOpenSettings, bgColor, gridType, strokeWidth, erase
         </div>
       </div>
       <TldrawCanvas ref={tldrawRef} bgColor={bgColor} gridType={gridType} onEditorReady={handleEditorReady} />
+      <div className="flex items-center justify-center p-4 border-t bg-card">
+        <DrawingToolbar strokeWidth={strokeWidth} onStrokeWidthChange={() => {}} eraserSize={eraserSize} onEraserSizeChange={() => {}} eraserSoftness={eraserSoftness} onEraserSoftnessChange={() => {}} currentTool={currentTool} onToolChange={onToolChange} />
+      </div>
     </div>
     );
     
