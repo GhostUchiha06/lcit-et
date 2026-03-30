@@ -355,7 +355,7 @@ function LayersPanel({
   };
 
   const handleDragStart = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.no-drag')) return;
+    if ((e.target as HTMLElement).closest('.layers-no-drag')) return;
     setIsDragging(true);
     setDragOffset({
       x: e.clientX - position.x,
@@ -421,7 +421,7 @@ function LayersPanel({
       }}
     >
       <div
-        className="flex items-center justify-between p-3 border-b bg-gray-50 dark:bg-gray-800 cursor-grab active:cursor-grabbing no-drag"
+        className="flex items-center justify-between p-3 border-b bg-gray-50 dark:bg-gray-800 cursor-grab active:cursor-grabbing"
         onMouseDown={handleDragStart}
       >
         <div className="flex items-center gap-2">
@@ -429,7 +429,7 @@ function LayersPanel({
           <span className="font-medium text-sm">Layers</span>
           <span className="text-xs text-muted-foreground">({layers.length})</span>
         </div>
-        <div className="flex items-center gap-1 no-drag">
+        <div className="flex items-center gap-1 layers-no-drag">
           <button
             onClick={onAddLayer}
             className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
@@ -587,7 +587,7 @@ function LayersPanel({
         ))}
       </div>
       <div
-        className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-blue-500/20 transition-colors no-drag"
+        className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-blue-500/20 transition-colors layers-no-drag"
         onMouseDown={handleResizeStart}
       />
     </div>

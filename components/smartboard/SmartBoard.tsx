@@ -800,7 +800,7 @@ function WhiteboardToolbar({
   };
 
   return (
-    <div className="absolute bottom-4 md:bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 z-20">
+    <div className="absolute bottom-4 md:bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 z-50">
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 flex items-center gap-1 overflow-x-auto scrollbar-hide max-w-full md:max-w-none justify-center md:justify-start">
         <button onClick={onUndo} disabled={!canUndo} className={cn("p-2.5 rounded-xl transition-all flex-shrink-0", canUndo ? "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200" : "text-gray-300 dark:text-gray-600")}>
           <Undo2 className="w-5 h-5" />
@@ -812,7 +812,7 @@ function WhiteboardToolbar({
         <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
 
         {tools.map((tool) => (
-          <div key={tool.id} className="relative flex-shrink-0">
+          <div key={tool.id} className="relative flex-shrink-0" style={{ overflow: 'visible' }}>
             {tool.id === "geo" ? (
               <>
                 <button
@@ -831,7 +831,7 @@ function WhiteboardToolbar({
                   <ChevronDown className="w-3 h-3" />
                 </button>
                 {showShapes && (
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 grid grid-cols-4 gap-3 min-w-[180px]">
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 grid grid-cols-4 gap-3 min-w-[180px] z-50">
                     {shapeOptions.map((shape) => {
                       const Icon = shape.icon;
                       return (
@@ -868,7 +868,7 @@ function WhiteboardToolbar({
 
         <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />
 
-        <div className="relative flex-shrink-0">
+        <div className="relative flex-shrink-0" style={{ overflow: 'visible' }}>
           <button
             onClick={() => { setShowColors(!showColors); setShowShapes(false); setShowExportMenu(false); }}
             className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
@@ -876,7 +876,7 @@ function WhiteboardToolbar({
             <div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: currentColor }} />
           </button>
           {showColors && (
-            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2">
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 z-50">
               <div className="grid grid-cols-5 gap-1.5">
                 {PEN_COLORS.map((color) => (
                   <button
@@ -964,7 +964,7 @@ function WhiteboardToolbar({
 
         <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />
 
-        <div className="relative flex-shrink-0">
+        <div className="relative flex-shrink-0" style={{ overflow: 'visible' }}>
           <button
             onClick={() => { setShowExportMenu(!showExportMenu); setShowColors(false); setShowShapes(false); }}
             className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all text-gray-700 dark:text-gray-200"
@@ -973,7 +973,7 @@ function WhiteboardToolbar({
             <DownloadCloud className="w-5 h-5" />
           </button>
           {showExportMenu && (
-            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 min-w-40">
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 min-w-40 z-50">
               <button
                 onClick={() => { onExport("png"); setShowExportMenu(false); }}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
