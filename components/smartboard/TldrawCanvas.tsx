@@ -67,14 +67,18 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
       try {
         const editor = editorRef.current;
         
-        if (editor.getCurrentToolId() !== tldrawTool) {
-          editor.setCurrentTool(tldrawTool);
-        }
-        
-        if (currentTool === "geo" && editor.getCurrentTool()) {
-          const tool = editor.getCurrentTool();
-          if (tool && typeof tool.setGeo === "function") {
-            tool.setGeo(currentShape);
+        if (currentTool === "geo") {
+          if (editor.getCurrentToolId() !== "geo") {
+            editor.setCurrentTool("geo");
+          }
+          import("@tldraw/tldraw").then((mod) => {
+            if (mod.GeoShapeGeoStyle) {
+              editor.setStyleForNextShapes(mod.GeoShapeGeoStyle, currentShape);
+            }
+          });
+        } else {
+          if (editor.getCurrentToolId() !== tldrawTool) {
+            editor.setCurrentTool(tldrawTool);
           }
         }
       } catch (e) {

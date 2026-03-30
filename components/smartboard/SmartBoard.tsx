@@ -1073,18 +1073,27 @@ function WhiteboardPanel({
     if (!editorRef.current) return;
     try {
       const editor = editorRef.current;
+      const shapeIds = [...editor.getCurrentPageShapeIds()];
       
       if (format === "png") {
-        const asset = await editor.toImage();
-        const url = URL.createObjectURL(asset);
+        if (shapeIds.length === 0) {
+          toast.error("No shapes to export");
+          return;
+        }
+        const { blob } = await editor.toImage(shapeIds, { format: 'png', background: false });
+        const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
         a.download = `whiteboard-page-${currentPage}.png`;
         a.click();
         URL.revokeObjectURL(url);
       } else if (format === "svg") {
-        const svgString = await editor.toSvg();
-        const blob = new Blob([svgString], { type: "image/svg+xml" });
+        if (shapeIds.length === 0) {
+          toast.error("No shapes to export");
+          return;
+        }
+        const svg = await editor.toSvg(shapeIds);
+        const blob = new Blob([svg], { type: "image/svg+xml" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
