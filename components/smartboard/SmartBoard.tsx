@@ -985,6 +985,7 @@ function WhiteboardPanel({
   const [canRedo, setCanRedo] = useState(false);
   const [pages, setPages] = useState([{ id: "1", name: "Page 1" }]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [customShapes, setCustomShapes] = useState<any[]>([]);
   const editorRef = useRef<any>(null);
 
   const handleEditorReady = useCallback((editor: any) => {
@@ -1067,6 +1068,7 @@ function WhiteboardPanel({
       const shapes = editorRef.current.getCurrentPageShapeIds();
       if (shapes.size > 0) editorRef.current.deleteShapes([...shapes]);
     }
+    setCustomShapes([]);
   };
 
   const handleExport = async (format: "png" | "svg" | "json") => {
@@ -1076,11 +1078,7 @@ function WhiteboardPanel({
       const shapeIds = [...editor.getCurrentPageShapeIds()];
       
       if (format === "png") {
-        if (shapeIds.length === 0) {
-          toast.error("No shapes to export");
-          return;
-        }
-        const { blob } = await editor.toImage(shapeIds, { format: 'png', background: false });
+        const { blob } = await editor.toImage(shapeIds, { format: 'png', background: true });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -1088,10 +1086,6 @@ function WhiteboardPanel({
         a.click();
         URL.revokeObjectURL(url);
       } else if (format === "svg") {
-        if (shapeIds.length === 0) {
-          toast.error("No shapes to export");
-          return;
-        }
         const svg = await editor.toSvg(shapeIds);
         const blob = new Blob([svg], { type: "image/svg+xml" });
         const url = URL.createObjectURL(blob);
@@ -1102,7 +1096,11 @@ function WhiteboardPanel({
         URL.revokeObjectURL(url);
       } else if (format === "json") {
         const snapshot = editor.store.getSnapshot();
-        const jsonString = JSON.stringify(snapshot, null, 2);
+        const exportData = {
+          ...snapshot,
+          customShapes: customShapes,
+        };
+        const jsonString = JSON.stringify(exportData, null, 2);
         const blob = new Blob([jsonString], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -1195,6 +1193,9 @@ function WhiteboardPanel({
         currentTool={currentTool}
         currentColor={currentColor}
         strokeWidth={strokeWidth}
+        currentShape={currentShape}
+        shapes={customShapes}
+        onShapesChange={setCustomShapes}
       />
       <WhiteboardToolbar
         currentTool={currentTool}
