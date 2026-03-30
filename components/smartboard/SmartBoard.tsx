@@ -580,12 +580,22 @@ function NotesPanel({
             {isLoadingFiles ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
+                <span className="ml-2 text-sm text-muted-foreground">Loading files...</span>
               </div>
             ) : folderStructure.length === 0 ? (
-              <div className="text-center py-4 px-3">
-                <Folder className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" />
-                <p className="text-sm text-muted-foreground">No files found.</p>
+              <div className="text-center py-6 px-3">
+                <Folder className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
+                <p className="text-sm text-muted-foreground mb-2">No files in Drive</p>
+                <p className="text-xs text-muted-foreground/70">Make sure:</p>
+                <ul className="text-xs text-muted-foreground/70 mt-1 space-y-0.5">
+                  <li>• Shared drive "SmartBoard" exists</li>
+                  <li>• Has folders with images/PDFs</li>
+                  <li>• Service account has access</li>
+                </ul>
+                <button onClick={onRefreshFiles} className="mt-3 px-3 py-1.5 text-xs bg-secondary hover:bg-secondary/80 rounded-lg transition-colors flex items-center gap-1 mx-auto">
+                  <RefreshCw className="w-3 h-3" />
+                  Try Again
+                </button>
               </div>
             ) : (
               folderStructure.map((folder) => (
@@ -595,7 +605,7 @@ function NotesPanel({
             <div className="p-2 border-t">
               <button onClick={onRefreshFiles} className="w-full flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <RefreshCw className={cn("w-4 h-4", isLoadingFiles && "animate-spin")} />
-                Refresh
+                Refresh Files
               </button>
             </div>
           </div>
@@ -699,7 +709,7 @@ function ImageViewer({ file, onClose }: { file: DriveFile; onClose: () => void }
   );
 }
 
-type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "brushEraser" | "line" | "arrow" | "rect" | "circle" | "triangle" | "diamond" | "text" | "note";
+type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "brushEraser" | "geo" | "line" | "arrow" | "text" | "note";
 
 const tools = [
   { id: "select" as Tool, icon: MousePointer2, label: "Select" },
@@ -707,10 +717,7 @@ const tools = [
   { id: "pen" as Tool, icon: PenTool, label: "Pen" },
   { id: "eraser" as Tool, icon: Eraser, label: "Eraser" },
   { id: "brushEraser" as Tool, icon: Paintbrush, label: "Brush Eraser" },
-  { id: "rect" as Tool, icon: Square, label: "Rectangle" },
-  { id: "circle" as Tool, icon: Circle, label: "Ellipse" },
-  { id: "triangle" as Tool, icon: Triangle, label: "Triangle" },
-  { id: "diamond" as Tool, icon: Hexagon, label: "Diamond" },
+  { id: "geo" as Tool, icon: Square, label: "Shapes" },
   { id: "line" as Tool, icon: Minus, label: "Line" },
   { id: "arrow" as Tool, icon: ArrowRight, label: "Arrow" },
   { id: "text" as Tool, icon: Type, label: "Text" },
@@ -720,7 +727,7 @@ const tools = [
 const shapeOptions = [
   { id: "rectangle", label: "Rectangle", icon: Square },
   { id: "ellipse", label: "Ellipse", icon: Circle },
-  { id: "diamond", label: "Diamond", icon: Square },
+  { id: "diamond", label: "Diamond", icon: Hexagon },
   { id: "triangle", label: "Triangle", icon: Triangle },
   { id: "hexagon", label: "Hexagon", icon: Hexagon },
   { id: "star", label: "Star", icon: Star },
@@ -805,16 +812,56 @@ function WhiteboardToolbar({
 
         {tools.map((tool) => (
           <div key={tool.id} className="relative">
-            <button
-              onClick={() => { onToolChange(tool.id); setShowShapes(false); setShowExportMenu(false); }}
-              className={cn(
-                "p-2.5 rounded-xl transition-all",
-                currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
-              )}
-              title={tool.label}
-            >
-              <tool.icon className="w-5 h-5" />
-            </button>
+            {tool.id === "geo" ? (
+              <>
+                <button
+                  onClick={() => { onToolChange(tool.id); setShowShapes(!showShapes); setShowExportMenu(false); }}
+                  className={cn(
+                    "p-2.5 rounded-xl transition-all flex items-center gap-1",
+                    currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+                  )}
+                  title={tool.label}
+                >
+                  {(() => {
+                    const shape = shapeOptions.find(s => s.id === currentShape);
+                    const Icon = shape?.icon || Square;
+                    return <Icon className="w-5 h-5" />;
+                  })()}
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                {showShapes && (
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 grid grid-cols-4 gap-1">
+                    {shapeOptions.map((shape) => {
+                      const Icon = shape.icon;
+                      return (
+                        <button
+                          key={shape.id}
+                          onClick={() => { onShapeChange(shape.id); setShowShapes(false); }}
+                          className={cn(
+                            "p-2 rounded-lg transition-all hover:bg-gray-100 dark:hover:bg-gray-800",
+                            currentShape === shape.id ? "bg-blue-500 text-white" : "text-gray-700 dark:text-gray-200"
+                          )}
+                          title={shape.label}
+                        >
+                          <Icon className="w-5 h-5" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={() => { onToolChange(tool.id); setShowShapes(false); setShowExportMenu(false); }}
+                className={cn(
+                  "p-2.5 rounded-xl transition-all",
+                  currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+                )}
+                title={tool.label}
+              >
+                <tool.icon className="w-5 h-5" />
+              </button>
+            )}
           </div>
         ))}
 
@@ -971,6 +1018,8 @@ function WhiteboardToolbar({
         <button onClick={onClear} className="p-2.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-all" title="Clear">
           <Trash className="w-5 h-5" />
         </button>
+
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
       </div>
     </div>
   );

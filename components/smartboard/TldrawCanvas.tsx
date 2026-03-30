@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
+import { Eye, EyeOff, Lock, Unlock, Trash2, Plus, ChevronDown, ChevronUp, Layers, Copy, Clipboard } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "brushEraser" | "line" | "arrow" | "rect" | "circle" | "triangle" | "diamond" | "text" | "note";
+type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "brushEraser" | "geo" | "line" | "arrow" | "text" | "note";
 type LineStyle = "solid" | "dashed" | "dotted";
 
 interface Point { x: number; y: number; }
@@ -19,6 +21,7 @@ interface EraserParticle {
 }
 
 interface DrawObject {
+  id: string;
   type: string;
   c: string;
   fc: string;
@@ -36,6 +39,14 @@ interface DrawObject {
   lineStyle?: LineStyle;
 }
 
+interface Layer {
+  id: string;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  objects: DrawObject[];
+}
+
 interface TldrawCanvasProps {
   bgColor: string;
   gridType: "dots" | "lines" | "none";
@@ -47,12 +58,11 @@ interface TldrawCanvasProps {
   fillEnabled?: boolean;
   lineStyle?: LineStyle;
   onObjectsChange?: (objects: DrawObject[]) => void;
-  onExportReady?: (exportFn: (format: string) => void) => void;
 }
 
-const STROKE_COLORS = ['#000000', '#1e293b', '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#6366f1', '#a855f7', '#ec4899', '#ffffff', '#94a3b8'];
-const FILL_COLORS = ['#fef2f2', '#fff7ed', '#fefce8', '#f0fdf4', '#ecfeff', '#eef2ff', '#fdf4ff', '#fff1f2', 'transparent'];
-const NOTE_COLORS = ['#fef08a', '#bbf7d0', '#bae6fd', '#fecaca', '#e9d5ff', '#fed7aa'];
+function genId() {
+  return Math.random().toString(36).substring(2, 11);
+}
 
 function dSeg(px: number, py: number, x1: number, y1: number, x2: number, y2: number) {
   const dx = x2 - x1, dy = y2 - y1, len2 = dx * dx + dy * dy;
@@ -115,6 +125,167 @@ function bbox(o: DrawObject) {
   }
 }
 
+function LayersPanel({
+  layers,
+  currentLayerId,
+  onSelectLayer,
+  onAddLayer,
+  onDeleteLayer,
+  onRenameLayer,
+  onToggleVisibility,
+  onToggleLock,
+  onMoveLayer,
+  onSelectObjects,
+  selectedObjectIds,
+}: {
+  layers: Layer[];
+  currentLayerId: string;
+  onSelectLayer: (id: string) => void;
+  onAddLayer: () => void;
+  onDeleteLayer: (id: string) => void;
+  onRenameLayer: (id: string, name: string) => void;
+  onToggleVisibility: (id: string) => void;
+  onToggleLock: (id: string) => void;
+  onMoveLayer: (id: string, direction: 'up' | 'down') => void;
+  onSelectObjects: (ids: string[]) => void;
+  selectedObjectIds: string[];
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingId]);
+
+  const handleStartEdit = (layer: Layer) => {
+    setEditingId(layer.id);
+    setEditingName(layer.name);
+  };
+
+  const handleFinishEdit = () => {
+    if (editingId && editingName.trim()) {
+      onRenameLayer(editingId, editingName.trim());
+    }
+    setEditingId(null);
+    setEditingName("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleFinishEdit();
+    } else if (e.key === "Escape") {
+      setEditingId(null);
+      setEditingName("");
+    }
+  };
+
+  return (
+    <div className="absolute top-4 right-4 z-30 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="flex items-center justify-between p-3 border-b bg-gray-50 dark:bg-gray-800">
+        <div className="flex items-center gap-2">
+          <Layers className="w-4 h-4" />
+          <span className="font-medium text-sm">Layers</span>
+          <span className="text-xs text-muted-foreground">({layers.length})</span>
+        </div>
+        <button
+          onClick={onAddLayer}
+          className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          title="Add Layer"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="max-h-80 overflow-y-auto">
+        {[...layers].reverse().map((layer) => (
+          <div
+            key={layer.id}
+            className={cn(
+              "group border-b border-gray-100 dark:border-gray-800",
+              currentLayerId === layer.id && "bg-blue-50 dark:bg-blue-900/20"
+            )}
+          >
+            <div className="flex items-center gap-2 p-2">
+              <button
+                onClick={() => onToggleVisibility(layer.id)}
+                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                title={layer.visible ? "Hide Layer" : "Show Layer"}
+              >
+                {layer.visible ? (
+                  <Eye className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                ) : (
+                  <EyeOff className="w-4 h-4 text-gray-400" />
+                )}
+              </button>
+              <button
+                onClick={() => onToggleLock(layer.id)}
+                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                title={layer.locked ? "Unlock Layer" : "Lock Layer"}
+              >
+                {layer.locked ? (
+                  <Lock className="w-4 h-4 text-amber-600" />
+                ) : (
+                  <Unlock className="w-4 h-4 text-gray-400" />
+                )}
+              </button>
+              <div className="flex-1 min-w-0">
+                {editingId === layer.id ? (
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onBlur={handleFinishEdit}
+                    onKeyDown={handleKeyDown}
+                    className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-800 border border-blue-500 rounded outline-none"
+                  />
+                ) : (
+                  <button
+                    onClick={() => onSelectLayer(layer.id)}
+                    onDoubleClick={() => handleStartEdit(layer)}
+                    className="w-full text-left px-2 py-1 text-sm truncate rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    {layer.name}
+                  </button>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground">{layer.objects.length}</span>
+              <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => onMoveLayer(layer.id, 'up')}
+                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                  title="Move Up"
+                >
+                  <ChevronUp className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => onMoveLayer(layer.id, 'down')}
+                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                  title="Move Down"
+                >
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                {layers.length > 1 && (
+                  <button
+                    onClick={() => onDeleteLayer(layer.id)}
+                    className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500"
+                    title="Delete Layer"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function TldrawCanvas({
   bgColor,
   gridType,
@@ -129,9 +300,12 @@ export default function TldrawCanvas({
 }: TldrawCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [objects, setObjects] = useState<DrawObject[]>([]);
+  const [layers, setLayers] = useState<Layer[]>([
+    { id: genId(), name: "Layer 1", visible: true, locked: false, objects: [] }
+  ]);
+  const [currentLayerId, setCurrentLayerId] = useState(layers[0].id);
   const [curObj, setCurObj] = useState<DrawObject | null>(null);
-  const [selIdx, setSelIdx] = useState(-1);
+  const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [drawing, setDrawing] = useState(false);
   const [panning, setPanning] = useState(false);
   const [spaceDown, setSpaceDown] = useState(false);
@@ -143,20 +317,34 @@ export default function TldrawCanvas({
   const [lx, setLx] = useState(0);
   const [ly, setLy] = useState(0);
   const [showGrid, setShowGrid] = useState(gridType !== "none");
-  const [history, setHistory] = useState<DrawObject[][]>([[]]);
-  const [hi, setHi] = useState([0]);
   const [eraserParticles, setEraserParticles] = useState<EraserParticle[]>([]);
   const [isErasing, setIsErasing] = useState(false);
+  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [copiedObjects, setCopiedObjects] = useState<DrawObject[]>([]);
 
-  const activeTool: Tool = currentTool as Tool;
+  const currentLayer = layers.find(l => l.id === currentLayerId);
+  const activeObjects = currentLayer?.objects || [];
+
+  const toolMap: Record<string, string> = {
+    rectangle: "rect",
+    ellipse: "circle",
+    diamond: "diamond",
+    triangle: "triangle",
+    hexagon: "rect",
+    star: "rect",
+    chat: "arrow",
+    checkbox: "rect",
+  };
+
+  const activeTool: Tool = currentTool === "geo" ? (toolMap[currentShape] || "rect") as Tool : currentTool as Tool;
 
   useEffect(() => {
     setShowGrid(gridType !== "none");
   }, [gridType]);
 
   useEffect(() => {
-    onObjectsChange?.(objects);
-  }, [objects, onObjectsChange]);
+    onObjectsChange?.(layers.flatMap(l => l.objects));
+  }, [layers, onObjectsChange]);
 
   useEffect(() => {
     if (eraserParticles.length === 0) return;
@@ -204,6 +392,15 @@ export default function TldrawCanvas({
     };
   }, [panX, panY, zoom]);
 
+  const findObjectLayer = useCallback((objectId: string): string | null => {
+    for (const layer of layers) {
+      if (layer.objects.some(o => o.id === objectId)) {
+        return layer.id;
+      }
+    }
+    return null;
+  }, [layers]);
+
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -214,10 +411,22 @@ export default function TldrawCanvas({
     ctx.translate(panX, panY);
     ctx.scale(zoom, zoom);
 
-    objects.forEach(o => drawO(ctx, o));
-    if (curObj) drawO(ctx, curObj);
-    if (selIdx >= 0 && selIdx < objects.length) drawSel(ctx, objects[selIdx]);
+    layers.forEach(layer => {
+      if (!layer.visible) return;
+      layer.objects.forEach(o => drawO(ctx, o));
+    });
     
+    if (curObj) drawO(ctx, curObj);
+    
+    selectedObjectIds.forEach(id => {
+      const layerId = findObjectLayer(id);
+      if (layerId) {
+        const layer = layers.find(l => l.id === layerId);
+        const obj = layer?.objects.find(o => o.id === id);
+        if (obj && layer?.visible) drawSel(ctx, obj);
+      }
+    });
+
     eraserParticles.forEach(p => {
       ctx.save();
       ctx.globalAlpha = p.life;
@@ -228,8 +437,19 @@ export default function TldrawCanvas({
       ctx.restore();
     });
 
+    if (marquee) {
+      ctx.save();
+      ctx.strokeStyle = "#6366f1";
+      ctx.fillStyle = "rgba(99, 102, 241, 0.1)";
+      ctx.lineWidth = 1 / zoom;
+      ctx.setLineDash([5 / zoom, 3 / zoom]);
+      ctx.fillRect(marquee.x, marquee.y, marquee.w, marquee.h);
+      ctx.strokeRect(marquee.x, marquee.y, marquee.w, marquee.h);
+      ctx.restore();
+    }
+
     ctx.restore();
-  }, [objects, curObj, selIdx, panX, panY, zoom, eraserParticles]);
+  }, [layers, curObj, selectedObjectIds, panX, panY, zoom, eraserParticles, marquee, findObjectLayer]);
 
   const drawO = (c: CanvasRenderingContext2D, o: DrawObject) => {
     c.save();
@@ -366,7 +586,7 @@ export default function TldrawCanvas({
   };
 
   const mkShape = (tool: string, x1: number, y1: number, x2: number, y2: number): DrawObject => {
-    const base: DrawObject = { type: tool, c: currentColor, fc: fillEnabled ? fillColor : "transparent", w: strokeWidth, op: 1, lineStyle };
+    const base: DrawObject = { id: genId(), type: tool, c: currentColor, fc: fillEnabled ? fillColor : "transparent", w: strokeWidth, op: 1, lineStyle };
     const x = Math.min(x1, x2);
     const y = Math.min(y1, y2);
     const ww = Math.abs(x2 - x1);
@@ -392,12 +612,60 @@ export default function TldrawCanvas({
     }
   };
 
-  const pushHist = () => {
-    setHistory(prev => {
-      const newHist = [...prev];
-      newHist[newHist.length - 1] = [...objects];
-      return [...newHist, [...objects]];
-    });
+  const deepClone = (obj: DrawObject): DrawObject => {
+    const clone = { ...obj, id: genId() };
+    if (obj.pts) clone.pts = obj.pts.map(p => ({ ...p }));
+    return clone;
+  };
+
+  const addLayer = () => {
+    const newLayer: Layer = {
+      id: genId(),
+      name: `Layer ${layers.length + 1}`,
+      visible: true,
+      locked: false,
+      objects: [],
+    };
+    setLayers(prev => [...prev, newLayer]);
+    setCurrentLayerId(newLayer.id);
+    setSelectedObjectIds([]);
+  };
+
+  const deleteLayer = (id: string) => {
+    if (layers.length <= 1) return;
+    const idx = layers.findIndex(l => l.id === id);
+    const newLayers = layers.filter(l => l.id !== id);
+    setLayers(newLayers);
+    if (currentLayerId === id) {
+      const newIdx = Math.min(idx, newLayers.length - 1);
+      setCurrentLayerId(newLayers[newIdx].id);
+    }
+    setSelectedObjectIds([]);
+  };
+
+  const renameLayer = (id: string, name: string) => {
+    setLayers(prev => prev.map(l => l.id === id ? { ...l, name } : l));
+  };
+
+  const toggleLayerVisibility = (id: string) => {
+    setLayers(prev => prev.map(l => l.id === id ? { ...l, visible: !l.visible } : l));
+  };
+
+  const toggleLayerLock = (id: string) => {
+    setLayers(prev => prev.map(l => l.id === id ? { ...l, locked: !l.locked } : l));
+  };
+
+  const moveLayer = (id: string, direction: 'up' | 'down') => {
+    const idx = layers.findIndex(l => l.id === id);
+    if (direction === 'up' && idx > 0) {
+      const newLayers = [...layers];
+      [newLayers[idx], newLayers[idx - 1]] = [newLayers[idx - 1], newLayers[idx]];
+      setLayers(newLayers);
+    } else if (direction === 'down' && idx < layers.length - 1) {
+      const newLayers = [...layers];
+      [newLayers[idx], newLayers[idx + 1]] = [newLayers[idx + 1], newLayers[idx]];
+      setLayers(newLayers);
+    }
   };
 
   useEffect(() => {
@@ -432,6 +700,8 @@ export default function TldrawCanvas({
         return;
       }
 
+      if (currentLayer?.locked) return;
+
       setDrawing(true);
       setSx(p.x);
       setSy(p.y);
@@ -439,7 +709,11 @@ export default function TldrawCanvas({
       setLy(p.y);
 
       if (activeTool === "pencil" || activeTool === "pen") {
-        setCurObj({ type: "path", pts: [{ x: p.x, y: p.y }], c: currentColor, fc: "transparent", w: strokeWidth, smooth: activeTool === "pen", op: 1, lineStyle });
+        setCurObj({ id: genId(), type: "path", pts: [{ x: p.x, y: p.y }], c: currentColor, fc: "transparent", w: strokeWidth, smooth: activeTool === "pen", op: 1, lineStyle });
+      }
+
+      if (activeTool === "select") {
+        setMarquee({ x: p.x, y: p.y, w: 0, h: 0 });
       }
     };
 
@@ -455,14 +729,29 @@ export default function TldrawCanvas({
 
       const p = cpx(e);
 
-      if (activeTool === "select" && selIdx >= 0) {
+      if (activeTool === "select" && marquee) {
+        setMarquee({ ...marquee, w: p.x - marquee.x, h: p.y - marquee.y });
+        render();
+        return;
+      }
+
+      if (activeTool === "select" && selectedObjectIds.length > 0) {
         const dx = p.x - sx;
         const dy = p.y - sy;
-        setObjects(prev => {
-          const newObjs = [...prev];
-          moveObj(newObjs[selIdx], dx, dy);
-          return newObjs;
-        });
+        setLayers(prev => prev.map(layer => {
+          if (layer.id !== currentLayerId) return layer;
+          return {
+            ...layer,
+            objects: layer.objects.map(obj => {
+              if (selectedObjectIds.includes(obj.id)) {
+                const clone = { ...obj };
+                moveObj(clone, dx, dy);
+                return clone;
+              }
+              return obj;
+            })
+          };
+        }));
         setSx(p.x);
         setSy(p.y);
         render();
@@ -471,29 +760,38 @@ export default function TldrawCanvas({
 
       if (activeTool === "eraser" || activeTool === "brushEraser") {
         const r = activeTool === "brushEraser" ? strokeWidth * 2 : strokeWidth * 3;
-        const erased = hitTestAll(objects, p.x, p.y, r);
+        const erased = hitTestAll(activeObjects, p.x, p.y, r);
         
         if (erased.length > 0) {
           const newParticles: EraserParticle[] = [];
-          erased.forEach((_, idx) => {
-            for (let i = 0; i < 5; i++) {
-              newParticles.push({
-                x: p.x + (Math.random() - 0.5) * r * 2,
-                y: p.y + (Math.random() - 0.5) * r * 2,
-                vx: (Math.random() - 0.5) * 8,
-                vy: (Math.random() - 0.5) * 8,
-                life: 1,
-                maxLife: 1,
-                size: Math.random() * 4 + 2,
-                color: objects[idx]?.c || '#fff',
-              });
+          erased.forEach(idx => {
+            const obj = activeObjects[idx];
+            if (obj) {
+              for (let i = 0; i < 5; i++) {
+                newParticles.push({
+                  x: p.x + (Math.random() - 0.5) * r * 2,
+                  y: p.y + (Math.random() - 0.5) * r * 2,
+                  vx: (Math.random() - 0.5) * 8,
+                  vy: (Math.random() - 0.5) * 8,
+                  life: 1,
+                  maxLife: 1,
+                  size: Math.random() * 4 + 2,
+                  color: obj.c || '#fff',
+                });
+              }
             }
           });
           setEraserParticles(prev => [...prev, ...newParticles]);
           setIsErasing(true);
         }
         
-        setObjects(prev => prev.filter((o, idx) => !erased.includes(idx)));
+        setLayers(prev => prev.map(layer => {
+          if (layer.id !== currentLayerId) return layer;
+          return {
+            ...layer,
+            objects: layer.objects.filter((_, idx) => !erased.includes(idx))
+          };
+        }));
         render();
         return;
       }
@@ -519,12 +817,26 @@ export default function TldrawCanvas({
       setDrawing(false);
 
       if (activeTool === "select") {
+        if (marquee) {
+          const minX = Math.min(marquee.x, marquee.x + marquee.w);
+          const minY = Math.min(marquee.y, marquee.y + marquee.h);
+          const maxX = Math.max(marquee.x, marquee.x + marquee.w);
+          const maxY = Math.max(marquee.y, marquee.y + marquee.h);
+          
+          const selected = activeObjects.filter(obj => {
+            const bb = bbox(obj);
+            if (!bb) return false;
+            return bb.x >= minX && bb.x + bb.w <= maxX && bb.y >= minY && bb.y + bb.h <= maxY;
+          }).map(o => o.id);
+          
+          setSelectedObjectIds(selected);
+        }
+        setMarquee(null);
         render();
         return;
       }
 
       if (activeTool === "eraser" || activeTool === "brushEraser") {
-        pushHist();
         setIsErasing(false);
         render();
         return;
@@ -535,8 +847,10 @@ export default function TldrawCanvas({
           setCurObj(null);
           return;
         }
-        setObjects(prev => [...prev, curObj]);
-        pushHist();
+        setLayers(prev => prev.map(layer => {
+          if (layer.id !== currentLayerId) return layer;
+          return { ...layer, objects: [...layer.objects, curObj] };
+        }));
         setCurObj(null);
         render();
       }
@@ -566,27 +880,82 @@ export default function TldrawCanvas({
         return;
       }
       if (e.code === "Delete" || e.code === "Backspace") {
-        if (selIdx >= 0) {
-          setObjects(prev => prev.filter((_, i) => i !== selIdx));
-          setSelIdx(-1);
-          pushHist();
+        if (selectedObjectIds.length > 0) {
+          setLayers(prev => prev.map(layer => {
+            if (layer.id !== currentLayerId) return layer;
+            return {
+              ...layer,
+              objects: layer.objects.filter(obj => !selectedObjectIds.includes(obj.id))
+            };
+          }));
+          setSelectedObjectIds([]);
           render();
         }
       }
       if (e.code === "Escape") {
-        setSelIdx(-1);
+        setSelectedObjectIds([]);
+        setMarquee(null);
         render();
       }
       if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ") {
         e.preventDefault();
-        setHistory(prev => {
-          if (prev.length <= 1) return prev;
-          const newHist = [...prev];
-          newHist.pop();
-          setObjects(newHist[newHist.length - 1] || []);
-          setTimeout(render, 0);
-          return newHist;
-        });
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyA") {
+        e.preventDefault();
+        setSelectedObjectIds(activeObjects.map(o => o.id));
+        render();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyC") {
+        e.preventDefault();
+        const selected = activeObjects.filter(o => selectedObjectIds.includes(o.id));
+        setCopiedObjects(selected.map(deepClone));
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyV") {
+        e.preventDefault();
+        if (copiedObjects.length > 0) {
+          const offset = 20;
+          const newObjects = copiedObjects.map(o => {
+            const clone = deepClone(o);
+            switch (clone.type) {
+              case "rect":
+              case "circle":
+              case "text":
+                clone.x! += offset;
+                clone.y! += offset;
+                break;
+              case "line":
+              case "arrow":
+                clone.x1! += offset;
+                clone.y1! += offset;
+                clone.x2! += offset;
+                clone.y2! += offset;
+                break;
+              case "triangle":
+                clone.x1! += offset;
+                clone.y1! += offset;
+                clone.x2! += offset;
+                clone.y2! += offset;
+                clone.x3! += offset;
+                clone.y3! += offset;
+                break;
+              case "diamond":
+                clone.cx! += offset;
+                clone.cy! += offset;
+                break;
+              case "path":
+                clone.pts = clone.pts?.map(p => ({ x: p.x + offset, y: p.y + offset }));
+                break;
+            }
+            return clone;
+          });
+          setLayers(prev => prev.map(layer => {
+            if (layer.id !== currentLayerId) return layer;
+            return { ...layer, objects: [...layer.objects, ...newObjects] };
+          }));
+          setSelectedObjectIds(newObjects.map(o => o.id));
+          setCopiedObjects(newObjects);
+          render();
+        }
       }
     };
 
@@ -597,12 +966,32 @@ export default function TldrawCanvas({
     const handleClick = (e: MouseEvent) => {
       if (activeTool !== "select") return;
       const p = cpx(e);
-      setSelIdx(-1);
-      for (let i = objects.length - 1; i >= 0; i--) {
-        if (hitTest(objects[i], p.x, p.y)) {
-          setSelIdx(i);
+
+      if (e.shiftKey && selectedObjectIds.length > 0) {
+        for (let i = activeObjects.length - 1; i >= 0; i--) {
+          if (hitTest(activeObjects[i], p.x, p.y)) {
+            const objId = activeObjects[i].id;
+            if (selectedObjectIds.includes(objId)) {
+              setSelectedObjectIds(prev => prev.filter(id => id !== objId));
+            } else {
+              setSelectedObjectIds(prev => [...prev, objId]);
+            }
+            render();
+            return;
+          }
+        }
+      }
+
+      let found = false;
+      for (let i = activeObjects.length - 1; i >= 0; i--) {
+        if (hitTest(activeObjects[i], p.x, p.y)) {
+          setSelectedObjectIds([activeObjects[i].id]);
+          found = true;
           break;
         }
+      }
+      if (!found) {
+        setSelectedObjectIds([]);
       }
       render();
     };
@@ -625,7 +1014,7 @@ export default function TldrawCanvas({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [activeTool, drawing, panning, sx, sy, lx, ly, curObj, selIdx, objects, spaceDown, strokeWidth, currentColor, fillEnabled, fillColor, lineStyle, cpx, render, eraserParticles]);
+  }, [activeTool, drawing, panning, sx, sy, lx, ly, curObj, selectedObjectIds, spaceDown, strokeWidth, currentColor, fillEnabled, fillColor, lineStyle, cpx, render, marquee, currentLayerId, currentLayer, activeObjects, copiedObjects, eraserParticles]);
 
   useEffect(() => {
     render();
@@ -636,7 +1025,7 @@ export default function TldrawCanvas({
 
   const getCursor = () => {
     switch (activeTool) {
-      case "select": return "default";
+      case "select": return selectedObjectIds.length > 0 ? "move" : "default";
       case "hand": return panning ? "grabbing" : "grab";
       case "eraser":
       case "brushEraser": return "crosshair";
@@ -664,9 +1053,22 @@ export default function TldrawCanvas({
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
       />
+      <LayersPanel
+        layers={layers}
+        currentLayerId={currentLayerId}
+        onSelectLayer={setCurrentLayerId}
+        onAddLayer={addLayer}
+        onDeleteLayer={deleteLayer}
+        onRenameLayer={renameLayer}
+        onToggleVisibility={toggleLayerVisibility}
+        onToggleLock={toggleLayerLock}
+        onMoveLayer={moveLayer}
+        onSelectObjects={setSelectedObjectIds}
+        selectedObjectIds={selectedObjectIds}
+      />
     </div>
   );
 }
 
 export { hitTest, bbox, dSeg };
-export type { DrawObject, Tool, LineStyle, Point };
+export type { DrawObject, Tool, LineStyle, Point, Layer };
