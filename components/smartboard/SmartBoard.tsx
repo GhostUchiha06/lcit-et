@@ -475,7 +475,18 @@ function ImageViewer({ file, onClose }: { file: DriveFile; onClose: () => void }
 
 type Tool = "select" | "pen" | "eraser" | "highlighter" | "rectangle" | "ellipse" | "arrow" | "line" | "text" | "sticky" | "image";
 
-function FloatingToolbar({
+const mainTools = [
+  { id: "select" as Tool, icon: MousePointer2, label: "Select (V)" },
+  { id: "pen" as Tool, icon: Pencil, label: "Pen (P)" },
+  { id: "highlighter" as Tool, icon: Highlighter, label: "Highlighter (H)" },
+  { id: "eraser" as Tool, icon: Eraser, label: "Eraser (E)" },
+  { id: "rectangle" as Tool, icon: Square, label: "Rectangle (R)" },
+  { id: "ellipse" as Tool, icon: Circle, label: "Ellipse (O)" },
+  { id: "arrow" as Tool, icon: ArrowRight, label: "Arrow (A)" },
+  { id: "text" as Tool, icon: Type, label: "Text (T)" },
+];
+
+function BottomToolbar({
   currentTool,
   onToolChange,
   currentColor,
@@ -501,24 +512,10 @@ function FloatingToolbar({
   canRedo: boolean;
 }) {
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [showStrokeSlider, setShowStrokeSlider] = useState(false);
-
-  const tools = [
-    { id: "select" as Tool, icon: MousePointer2, label: "Select" },
-    { id: "pen" as Tool, icon: Pencil, label: "Pen" },
-    { id: "highlighter" as Tool, icon: Highlighter, label: "Highlighter" },
-    { id: "eraser" as Tool, icon: Eraser, label: "Eraser" },
-    { id: "rectangle" as Tool, icon: Square, label: "Rectangle" },
-    { id: "ellipse" as Tool, icon: Circle, label: "Ellipse" },
-    { id: "line" as Tool, icon: ArrowRight, label: "Line" },
-    { id: "arrow" as Tool, icon: ArrowRight, label: "Arrow" },
-    { id: "text" as Tool, icon: Type, label: "Text" },
-    { id: "sticky" as Tool, icon: StickyNote, label: "Sticky Note" },
-  ];
 
   return (
-    <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-1">
-      <div className="bg-background/95 backdrop-blur-sm rounded-xl shadow-xl border p-2 flex flex-col gap-1">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
+      <div className="bg-background/95 backdrop-blur-sm rounded-2xl shadow-2xl border p-2 flex items-center gap-1">
         <button
           onClick={onUndo}
           disabled={!canUndo}
@@ -536,45 +533,42 @@ function FloatingToolbar({
           <Redo2 className="w-5 h-5" />
         </button>
 
-        <div className="w-full h-px bg-border my-1" />
+        <div className="w-px h-8 bg-border mx-2" />
 
-        {tools.map((tool) => (
+        {mainTools.map((tool) => (
           <button
             key={tool.id}
             onClick={() => onToolChange(tool.id)}
             className={cn(
-              "p-2.5 rounded-lg transition-all relative group",
+              "p-2.5 rounded-lg transition-all",
               currentTool === tool.id ? "bg-primary text-primary-foreground" : "hover:bg-secondary text-foreground"
             )}
             title={tool.label}
           >
             <tool.icon className="w-5 h-5" />
-            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-              {tool.label}
-            </span>
           </button>
         ))}
 
-        <div className="w-full h-px bg-border my-1" />
+        <div className="w-px h-8 bg-border mx-2" />
 
         <div className="relative">
           <button
-            onClick={() => { setShowColorPicker(!showColorPicker); setShowStrokeSlider(false); }}
-            className={cn("p-2.5 rounded-lg transition-all w-full", showColorPicker ? "bg-primary text-primary-foreground" : "hover:bg-secondary text-foreground")}
+            onClick={() => setShowColorPicker(!showColorPicker)}
+            className={cn("p-2.5 rounded-lg transition-all flex items-center gap-2", showColorPicker ? "bg-primary text-primary-foreground" : "hover:bg-secondary text-foreground")}
             title="Color"
           >
-            <div className="w-5 h-5 rounded-full border-2" style={{ backgroundColor: currentColor }} />
+            <div className="w-5 h-5 rounded-full border-2 border-white/50" style={{ backgroundColor: currentColor }} />
           </button>
           {showColorPicker && (
-            <div className="absolute left-full ml-2 top-0 bg-background/95 backdrop-blur-sm rounded-xl shadow-xl border p-3">
-              <div className="grid grid-cols-5 gap-1.5">
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur-sm rounded-xl shadow-xl border p-3">
+              <div className="grid grid-cols-5 gap-2">
                 {PEN_COLORS.map((color) => (
                   <button
                     key={color}
                     onClick={() => { onColorChange(color); setShowColorPicker(false); }}
                     className={cn(
-                      "w-6 h-6 rounded-full transition-all hover:scale-110",
-                      currentColor === color ? "ring-2 ring-primary ring-offset-2" : ""
+                      "w-8 h-8 rounded-full transition-all hover:scale-110 border-2",
+                      currentColor === color ? "ring-2 ring-primary ring-offset-2 border-primary" : "border-transparent"
                     )}
                     style={{ backgroundColor: color }}
                   />
@@ -584,35 +578,20 @@ function FloatingToolbar({
           )}
         </div>
 
-        <div className="relative">
-          <button
-            onClick={() => { setShowStrokeSlider(!showStrokeSlider); setShowColorPicker(false); }}
-            className={cn("p-2.5 rounded-lg transition-all w-full", showStrokeSlider ? "bg-primary text-primary-foreground" : "hover:bg-secondary text-foreground")}
-            title="Stroke Width"
-          >
-            <CircleDot className="w-5 h-5" />
-          </button>
-          {showStrokeSlider && (
-            <div className="absolute left-full ml-2 top-0 bg-background/95 backdrop-blur-sm rounded-xl shadow-xl border p-3 w-40">
-              <label className="text-xs text-muted-foreground mb-2 block">Stroke Width</label>
-              <input
-                type="range"
-                min="1"
-                max="20"
-                value={strokeWidth}
-                onChange={(e) => onStrokeWidthChange(parseInt(e.target.value))}
-                className="w-full accent-primary"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>1</span>
-                <span>{strokeWidth}px</span>
-                <span>20</span>
-              </div>
-            </div>
-          )}
+        <div className="flex items-center gap-2 px-3">
+          <input
+            type="range"
+            min="1"
+            max="20"
+            value={strokeWidth}
+            onChange={(e) => onStrokeWidthChange(parseInt(e.target.value))}
+            className="w-24 accent-primary"
+            title={`Stroke: ${strokeWidth}px`}
+          />
+          <span className="text-xs text-muted-foreground w-8">{strokeWidth}</span>
         </div>
 
-        <div className="w-full h-px bg-border my-1" />
+        <div className="w-px h-8 bg-border mx-2" />
 
         <button
           onClick={onClear}
@@ -811,7 +790,7 @@ function WhiteboardPanel({
         strokeWidth={strokeWidth}
       />
 
-      <FloatingToolbar
+      <BottomToolbar
         currentTool={currentTool}
         onToolChange={setCurrentTool}
         currentColor={currentColor}

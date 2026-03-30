@@ -39,9 +39,7 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 
     const handleMount = useCallback((editor: any) => {
       editorRef.current = editor;
-      
       editor.user.updateUserPreferences({ color: currentColor });
-      
       onEditorReady?.(editor);
     }, [onEditorReady, currentColor]);
 
@@ -107,7 +105,13 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
         <TldrawComponent 
           onMount={handleMount} 
           autoFocus 
-          components={{ DebugMenu: null }} 
+          components={{ 
+            DebugMenu: null,
+            DebugPanel: null,
+            SharePanel: null,
+            TopPanel: null,
+            HelperButtons: null,
+          }} 
         />
       </div>
     );
