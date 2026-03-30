@@ -42,9 +42,12 @@ import {
   CircleDot,
   StickyNote,
   DownloadCloud,
-  FileInput,
-  FileOutput,
-  Layers,
+  LayoutTemplate,
+  Brain,
+  Lightbulb,
+  BarChart3,
+  Target,
+  Sparkles,
 } from "lucide-react";
 
 function ViewModeButton({
@@ -90,6 +93,347 @@ const BG_COLORS = [
 const PEN_COLORS = [
   "#000000", "#374151", "#dc2626", "#ea580c", "#ca8a04", "#16a34a", "#0891b2", "#2563eb", "#7c3aed", "#db2777",
 ];
+
+export interface WhiteboardTemplate {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ElementType;
+  type: "brainstorming" | "planning" | "workflow" | "presentation";
+  theme: {
+    bgColor: string;
+    gridType: "dots" | "lines" | "none";
+    accentColor: string;
+  };
+  sections: TemplateSection[];
+}
+
+export interface TemplateSection {
+  title: string;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  elements: TemplateElement[];
+}
+
+export interface TemplateElement {
+  type: "text" | "sticky_note" | "shape" | "icon";
+  content?: string;
+  color?: string;
+  fontSize?: number;
+  shapeType?: "rectangle" | "circle" | "arrow" | "diamond" | "triangle" | "line";
+  iconType?: "brain" | "lightbulb" | "chart" | "target";
+  style?: Record<string, any>;
+}
+
+const templates: WhiteboardTemplate[] = [
+  {
+    id: "blank",
+    name: "Blank Canvas",
+    description: "Start with a clean slate",
+    icon: Square,
+    type: "presentation",
+    theme: { bgColor: "#ffffff", gridType: "dots", accentColor: "#2563eb" },
+    sections: [],
+  },
+  {
+    id: "brainstorm",
+    name: "Brainstorm",
+    description: "Mind map for ideas",
+    icon: Brain,
+    type: "brainstorming",
+    theme: { bgColor: "#fffef0", gridType: "none", accentColor: "#f59e0b" },
+    sections: [
+      {
+        title: "Main Idea",
+        position: { x: 400, y: 300 },
+        size: { width: 200, height: 80 },
+        elements: [
+          { type: "text", content: "Central Topic", fontSize: 20, style: { fontWeight: "bold" } },
+          { type: "shape", shapeType: "circle" },
+        ],
+      },
+      {
+        title: "Idea 1",
+        position: { x: 100, y: 150 },
+        size: { width: 150, height: 60 },
+        elements: [
+          { type: "sticky_note", content: "Idea", color: "#FFF3B0", fontSize: 14 },
+        ],
+      },
+      {
+        title: "Idea 2",
+        position: { x: 650, y: 150 },
+        size: { width: 150, height: 60 },
+        elements: [
+          { type: "sticky_note", content: "Idea", color: "#FECACA", fontSize: 14 },
+        ],
+      },
+      {
+        title: "Idea 3",
+        position: { x: 100, y: 450 },
+        size: { width: 150, height: 60 },
+        elements: [
+          { type: "sticky_note", content: "Idea", color: "#BAE6FD", fontSize: 14 },
+        ],
+      },
+      {
+        title: "Idea 4",
+        position: { x: 650, y: 450 },
+        size: { width: 150, height: 60 },
+        elements: [
+          { type: "sticky_note", content: "Idea", color: "#BBF7D0", fontSize: 14 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "kanban",
+    name: "Kanban Board",
+    description: "Project task management",
+    icon: LayoutTemplate,
+    type: "workflow",
+    theme: { bgColor: "#f8fafc", gridType: "none", accentColor: "#0891b2" },
+    sections: [
+      {
+        title: "To Do",
+        position: { x: 50, y: 100 },
+        size: { width: 250, height: 400 },
+        elements: [
+          { type: "sticky_note", content: "Task 1", color: "#FEE2E2", fontSize: 14 },
+          { type: "sticky_note", content: "Task 2", color: "#FEE2E2", fontSize: 14 },
+          { type: "sticky_note", content: "Task 3", color: "#FEE2E2", fontSize: 14 },
+        ],
+      },
+      {
+        title: "In Progress",
+        position: { x: 320, y: 100 },
+        size: { width: 250, height: 400 },
+        elements: [
+          { type: "sticky_note", content: "Task 4", color: "#FEF3C7", fontSize: 14 },
+          { type: "sticky_note", content: "Task 5", color: "#FEF3C7", fontSize: 14 },
+        ],
+      },
+      {
+        title: "Done",
+        position: { x: 590, y: 100 },
+        size: { width: 250, height: 400 },
+        elements: [
+          { type: "sticky_note", content: "Task 6", color: "#DCFCE7", fontSize: 14 },
+          { type: "sticky_note", content: "Task 7", color: "#DCFCE7", fontSize: 14 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "timeline",
+    name: "Timeline",
+    description: "Project timeline view",
+    icon: ArrowRight,
+    type: "planning",
+    theme: { bgColor: "#f0f8ff", gridType: "dots", accentColor: "#7c3aed" },
+    sections: [
+      {
+        title: "Start",
+        position: { x: 100, y: 280 },
+        size: { width: 120, height: 60 },
+        elements: [
+          { type: "shape", shapeType: "circle" },
+          { type: "text", content: "Start", fontSize: 14 },
+        ],
+      },
+      {
+        title: "Phase 1",
+        position: { x: 280, y: 280 },
+        size: { width: 150, height: 80 },
+        elements: [
+          { type: "sticky_note", content: "Phase 1", color: "#E0E7FF", fontSize: 14 },
+        ],
+      },
+      {
+        title: "Phase 2",
+        position: { x: 480, y: 280 },
+        size: { width: 150, height: 80 },
+        elements: [
+          { type: "sticky_note", content: "Phase 2", color: "#FEF3C7", fontSize: 14 },
+        ],
+      },
+      {
+        title: "Phase 3",
+        position: { x: 680, y: 280 },
+        size: { width: 150, height: 80 },
+        elements: [
+          { type: "sticky_note", content: "Phase 3", color: "#DCFCE7", fontSize: 14 },
+        ],
+      },
+      {
+        title: "End",
+        position: { x: 880, y: 280 },
+        size: { width: 120, height: 60 },
+        elements: [
+          { type: "shape", shapeType: "circle" },
+          { type: "text", content: "End", fontSize: 14 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "swot",
+    name: "SWOT Analysis",
+    description: "Strengths, Weaknesses, Opportunities, Threats",
+    icon: Target,
+    type: "planning",
+    theme: { bgColor: "#ffffff", gridType: "dots", accentColor: "#16a34a" },
+    sections: [
+      {
+        title: "Strengths",
+        position: { x: 50, y: 80 },
+        size: { width: 360, height: 180 },
+        elements: [
+          { type: "sticky_note", content: "Strength 1", color: "#DCFCE7", fontSize: 14 },
+          { type: "sticky_note", content: "Strength 2", color: "#DCFCE7", fontSize: 14 },
+        ],
+      },
+      {
+        title: "Weaknesses",
+        position: { x: 430, y: 80 },
+        size: { width: 360, height: 180 },
+        elements: [
+          { type: "sticky_note", content: "Weakness 1", color: "#FEE2E2", fontSize: 14 },
+          { type: "sticky_note", content: "Weakness 2", color: "#FEE2E2", fontSize: 14 },
+        ],
+      },
+      {
+        title: "Opportunities",
+        position: { x: 50, y: 320 },
+        size: { width: 360, height: 180 },
+        elements: [
+          { type: "sticky_note", content: "Opportunity 1", color: "#BAE6FD", fontSize: 14 },
+          { type: "sticky_note", content: "Opportunity 2", color: "#BAE6FD", fontSize: 14 },
+        ],
+      },
+      {
+        title: "Threats",
+        position: { x: 430, y: 320 },
+        size: { width: 360, height: 180 },
+        elements: [
+          { type: "sticky_note", content: "Threat 1", color: "#FEF3C7", fontSize: 14 },
+          { type: "sticky_note", content: "Threat 2", color: "#FEF3C7", fontSize: 14 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "presentation",
+    name: "Presentation",
+    description: "Slide-style layout",
+    icon: LayoutTemplate,
+    type: "presentation",
+    theme: { bgColor: "#1e1e1e", gridType: "none", accentColor: "#ffffff" },
+    sections: [
+      {
+        title: "Title",
+        position: { x: 100, y: 100 },
+        size: { width: 800, height: 100 },
+        elements: [
+          { type: "text", content: "Presentation Title", fontSize: 48, style: { fontWeight: "bold", color: "#ffffff" } },
+        ],
+      },
+      {
+        title: "Subtitle",
+        position: { x: 100, y: 220 },
+        size: { width: 800, height: 60 },
+        elements: [
+          { type: "text", content: "Subtitle or description here", fontSize: 24, style: { color: "#94a3b8" } },
+        ],
+      },
+      {
+        title: "Content",
+        position: { x: 100, y: 350 },
+        size: { width: 800, height: 200 },
+        elements: [
+          { type: "text", content: "Key points:", fontSize: 18, style: { color: "#ffffff" } },
+          { type: "sticky_note", content: "Point 1", color: "#2563eb", fontSize: 14 },
+          { type: "sticky_note", content: "Point 2", color: "#7c3aed", fontSize: 14 },
+          { type: "sticky_note", content: "Point 3", color: "#16a34a", fontSize: 14 },
+        ],
+      },
+    ],
+  },
+];
+
+function TemplateModal({
+  isOpen,
+  onClose,
+  onSelect,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (template: WhiteboardTemplate) => void;
+}) {
+  const [filter, setFilter] = useState<"all" | "brainstorming" | "planning" | "workflow" | "presentation">("all");
+
+  if (!isOpen) return null;
+
+  const filteredTemplates = filter === "all" ? templates : templates.filter((t) => t.type === filter);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-background rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden border" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Sparkles className="w-5 h-5" />
+            Choose a Template
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-secondary rounded-lg transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-4 border-b">
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { id: "all", label: "All" },
+              { id: "brainstorming", label: "Brainstorm" },
+              { id: "planning", label: "Planning" },
+              { id: "workflow", label: "Workflow" },
+              { id: "presentation", label: "Presentation" },
+            ].map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id as typeof filter)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-sm transition-colors",
+                  filter === f.id ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-secondary/80"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="p-4 overflow-y-auto max-h-[50vh]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredTemplates.map((template) => (
+              <button
+                key={template.id}
+                onClick={() => { onSelect(template); onClose(); }}
+                className="group p-4 rounded-xl border hover:border-primary hover:bg-primary/5 transition-all text-left"
+              >
+                <div
+                  className="w-full h-24 rounded-lg mb-3 flex items-center justify-center"
+                  style={{ backgroundColor: template.theme.bgColor }}
+                >
+                  <template.icon className="w-8 h-8" style={{ color: template.theme.accentColor }} />
+                </div>
+                <h4 className="font-medium group-hover:text-primary transition-colors">{template.name}</h4>
+                <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function BoardSettingsModal({
   isOpen,
@@ -434,12 +778,12 @@ const tools = [
 ];
 
 const shapeOptions = [
-  { id: "rectangle", icon: Square, label: "Rectangle" },
-  { id: "ellipse", icon: Circle, label: "Ellipse" },
-  { id: "diamond", icon: Square, label: "Diamond" },
-  { id: "triangle", icon: Square, label: "Triangle" },
-  { id: "line", icon: ArrowRight, label: "Line" },
-  { id: "arrow", icon: ArrowRight, label: "Arrow" },
+  { id: "rectangle", label: "Rectangle" },
+  { id: "ellipse", label: "Ellipse" },
+  { id: "diamond", label: "Diamond" },
+  { id: "triangle", label: "Triangle" },
+  { id: "line", label: "Line" },
+  { id: "arrow", label: "Arrow" },
 ];
 
 function WhiteboardToolbar({
@@ -520,12 +864,12 @@ function WhiteboardToolbar({
                         key={shape.id}
                         onClick={() => { onShapeChange(shape.id); setShowShapes(false); }}
                         className={cn(
-                          "p-2 rounded-lg transition-all",
+                          "px-3 py-2 rounded-lg transition-all text-xs",
                           currentShape === shape.id ? "bg-blue-500 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800"
                         )}
                         title={shape.label}
                       >
-                        <shape.icon className="w-4 h-4" />
+                        {shape.id.charAt(0).toUpperCase() + shape.id.slice(1)}
                       </button>
                     ))}
                   </div>
@@ -642,6 +986,10 @@ function WhiteboardPanel({
   onColorChange,
   strokeWidth,
   onStrokeWidthChange,
+  onBgColorChange,
+  onGridTypeChange,
+  template,
+  onTemplateApplied,
 }: {
   bgColor: string;
   gridType: "dots" | "lines" | "none";
@@ -649,6 +997,10 @@ function WhiteboardPanel({
   onColorChange: (color: string) => void;
   strokeWidth: number;
   onStrokeWidthChange: (width: number) => void;
+  onBgColorChange: (color: string) => void;
+  onGridTypeChange: (type: "dots" | "lines" | "none") => void;
+  template: WhiteboardTemplate | null;
+  onTemplateApplied: () => void;
 }) {
   const [currentTool, setCurrentTool] = useState<Tool>("draw");
   const [currentShape, setCurrentShape] = useState("rectangle");
@@ -657,7 +1009,6 @@ function WhiteboardPanel({
   const [pages, setPages] = useState([{ id: "1", name: "Page 1" }]);
   const [currentPage, setCurrentPage] = useState(1);
   const editorRef = useRef<any>(null);
-  const canvasRef = useRef<any>(null);
 
   const handleEditorReady = useCallback((editor: any) => {
     editorRef.current = editor;
@@ -666,7 +1017,75 @@ function WhiteboardPanel({
       setCanUndo(history.canUndo());
       setCanRedo(history.canRedo());
     });
-  }, []);
+    
+    if (template) {
+      applyTemplate(editor, template);
+    }
+  }, [template]);
+
+  const applyTemplate = (editor: any, tmpl: WhiteboardTemplate) => {
+    editor.clearPages();
+    editor.addPage({ name: tmpl.name });
+    
+    const pageId = editor.getCurrentPageId();
+    
+    const bgColor = tmpl.theme.bgColor;
+    onBgColorChange(bgColor);
+    onGridTypeChange(tmpl.theme.gridType);
+    
+    tmpl.sections.forEach((section, index) => {
+      section.elements.forEach((el) => {
+        if (el.type === "sticky_note") {
+          editor.createShape({
+            type: "note",
+            x: section.position.x + (index * 10),
+            y: section.position.y + (index * 10),
+            props: {
+              color: el.color || "#fef08a",
+              text: el.content || "",
+            },
+          });
+        } else if (el.type === "shape") {
+          editor.createShape({
+            type: "geo",
+            x: section.position.x,
+            y: section.position.y,
+            props: {
+              geo: el.shapeType || "rectangle",
+              w: section.size.width,
+              h: section.size.height,
+              fill: tmpl.theme.accentColor,
+            },
+          });
+          if (el.content) {
+            editor.createShape({
+              type: "text",
+              x: section.position.x + 10,
+              y: section.position.y + 10,
+              props: {
+                text: el.content,
+                fontSize: el.fontSize || 14,
+              },
+            });
+          }
+        } else if (el.type === "text") {
+          editor.createShape({
+            type: "text",
+            x: section.position.x,
+            y: section.position.y,
+            props: {
+              text: el.content || "",
+              fontSize: el.fontSize || 16,
+              color: el.style?.color || tmpl.theme.accentColor,
+            },
+          });
+        }
+      });
+    });
+    
+    onTemplateApplied();
+    toast.success(`Applied "${tmpl.name}" template`);
+  };
 
   const handleUndo = () => editorRef.current?.undo();
   const handleRedo = () => editorRef.current?.redo();
@@ -701,8 +1120,7 @@ function WhiteboardPanel({
     setCurrentPage(pages.length + 1);
     
     if (editorRef.current) {
-      editorRef.current.createPage();
-      editorRef.current.setCurrentPage(newPage.id);
+      editorRef.current.addPage({ name: newPage.name });
     }
   };
 
@@ -710,8 +1128,10 @@ function WhiteboardPanel({
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
       if (editorRef.current) {
-        const pageId = pages[currentPage - 2]?.id;
-        if (pageId) editorRef.current.setCurrentPage(pageId);
+        const pageIds = editorRef.current.getPageIds();
+        if (pageIds[currentPage - 2]) {
+          editorRef.current.setCurrentPage(pageIds[currentPage - 2]);
+        }
       }
     }
   };
@@ -720,8 +1140,10 @@ function WhiteboardPanel({
     if (currentPage < pages.length) {
       setCurrentPage(currentPage + 1);
       if (editorRef.current) {
-        const pageId = pages[currentPage]?.id;
-        if (pageId) editorRef.current.setCurrentPage(pageId);
+        const pageIds = editorRef.current.getPageIds();
+        if (pageIds[currentPage]) {
+          editorRef.current.setCurrentPage(pageIds[currentPage]);
+        }
       }
     }
   };
@@ -760,7 +1182,7 @@ function WhiteboardPanel({
   }, [currentTool, currentShape]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden" ref={canvasRef}>
+    <div className="relative w-full h-full overflow-hidden">
       <TldrawCanvas
         bgColor={bgColor}
         gridType={gridType}
@@ -805,6 +1227,7 @@ export default function SmartBoard() {
   const [slides, setSlides] = useState<NoteSlide[]>([{ id: "1", title: "Slide 1", content: "" }]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [folderStructure, setFolderStructure] = useState<FolderStructure[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -813,6 +1236,7 @@ export default function SmartBoard() {
   const [viewingFile, setViewingFile] = useState<DriveFile | null>(null);
   const [currentColor, setCurrentColor] = useState("#000000");
   const [strokeWidth, setStrokeWidth] = useState(4);
+  const [selectedTemplate, setSelectedTemplate] = useState<WhiteboardTemplate | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
 
@@ -887,8 +1311,17 @@ export default function SmartBoard() {
     setSlides(newSlides);
   };
 
+  const handleTemplateSelect = (template: WhiteboardTemplate) => {
+    setSelectedTemplate(template);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
+      <TemplateModal
+        isOpen={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
+        onSelect={handleTemplateSelect}
+      />
       <BoardSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} bgColor={bgColor} onBgColorChange={setBgColor} gridType={gridType} onGridTypeChange={setGridType} />
 
       <header className="flex items-center justify-between px-6 py-3 border-b bg-card flex-shrink-0">
@@ -901,6 +1334,13 @@ export default function SmartBoard() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowTemplateModal(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors text-sm"
+          >
+            <LayoutTemplate className="w-4 h-4" />
+            <span className="hidden md:inline">Templates</span>
+          </button>
           <button onClick={() => loadFolderStructure()} className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors text-sm">
             {isLoadingFiles ? <Loader2 className="w-4 h-4 animate-spin" /> : <Folder className="w-4 h-4" />}
             <span className="hidden md:inline">Files</span>
@@ -925,7 +1365,20 @@ export default function SmartBoard() {
           </div>
         )}
         {viewMode === "whiteboard" && (
-          <div className="w-full"><WhiteboardPanel bgColor={bgColor} gridType={gridType} currentColor={currentColor} onColorChange={setCurrentColor} strokeWidth={strokeWidth} onStrokeWidthChange={setStrokeWidth} /></div>
+          <div className="w-full">
+            <WhiteboardPanel
+              bgColor={bgColor}
+              gridType={gridType}
+              currentColor={currentColor}
+              onColorChange={setCurrentColor}
+              strokeWidth={strokeWidth}
+              onStrokeWidthChange={setStrokeWidth}
+              onBgColorChange={setBgColor}
+              onGridTypeChange={setGridType}
+              template={selectedTemplate}
+              onTemplateApplied={() => setSelectedTemplate(null)}
+            />
+          </div>
         )}
         {viewMode === "both" && (
           <>
@@ -938,7 +1391,18 @@ export default function SmartBoard() {
             </div>
             <ResizeHandle onMouseDown={handleResizeStart} />
             <div style={{ width: `${100 - splitRatio}%` }}>
-              <WhiteboardPanel bgColor={bgColor} gridType={gridType} currentColor={currentColor} onColorChange={setCurrentColor} strokeWidth={strokeWidth} onStrokeWidthChange={setStrokeWidth} />
+              <WhiteboardPanel
+                bgColor={bgColor}
+                gridType={gridType}
+                currentColor={currentColor}
+                onColorChange={setCurrentColor}
+                strokeWidth={strokeWidth}
+                onStrokeWidthChange={setStrokeWidth}
+                onBgColorChange={setBgColor}
+                onGridTypeChange={setGridType}
+                template={selectedTemplate}
+                onTemplateApplied={() => setSelectedTemplate(null)}
+              />
             </div>
           </>
         )}
