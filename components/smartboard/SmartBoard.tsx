@@ -755,7 +755,7 @@ function WhiteboardToolbar({
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
-  onExport: () => void;
+  onExport: (format: "png" | "svg" | "json") => void;
   canUndo: boolean;
   canRedo: boolean;
   currentShape: string;
@@ -905,13 +905,27 @@ function WhiteboardToolbar({
             <DownloadCloud className="w-5 h-5" />
           </button>
           {showExportMenu && (
-            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 min-w-32">
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 min-w-40">
               <button
-                onClick={() => { onExport(); setShowExportMenu(false); }}
+                onClick={() => { onExport("png"); setShowExportMenu(false); }}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
               >
                 <Download className="w-4 h-4" />
-                Export PNG
+                Export as PNG
+              </button>
+              <button
+                onClick={() => { onExport("svg"); setShowExportMenu(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
+              >
+                <Download className="w-4 h-4" />
+                Export as SVG
+              </button>
+              <button
+                onClick={() => { onExport("json"); setShowExportMenu(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
+              >
+                <Download className="w-4 h-4" />
+                Export as JSON
               </button>
             </div>
           )}
@@ -1055,18 +1069,41 @@ function WhiteboardPanel({
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (format: "png" | "svg" | "json") => {
     if (!editorRef.current) return;
     try {
       const editor = editorRef.current;
-      const asset = await editor.toImage();
-      const url = URL.createObjectURL(asset);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `whiteboard-page-${currentPage}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Exported successfully!");
+      
+      if (format === "png") {
+        const asset = await editor.toImage();
+        const url = URL.createObjectURL(asset);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `whiteboard-page-${currentPage}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else if (format === "svg") {
+        const svgString = await editor.toSvg();
+        const blob = new Blob([svgString], { type: "image/svg+xml" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `whiteboard-page-${currentPage}.svg`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else if (format === "json") {
+        const snapshot = editor.store.getSnapshot();
+        const jsonString = JSON.stringify(snapshot, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `whiteboard-page-${currentPage}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      
+      toast.success(`Exported as ${format.toUpperCase()} successfully!`);
     } catch (error) {
       toast.error("Failed to export");
       console.error(error);

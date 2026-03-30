@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useCallback, useEffect, forwardRef, useState } from "react";
-import { cn } from "@/lib/utils";
 
 interface TldrawCanvasHandle {
   getEditor: () => any;
@@ -14,17 +13,15 @@ interface TldrawCanvasProps {
   currentTool?: string;
   currentColor?: string;
   strokeWidth?: number;
-  currentPage?: number;
-  onPageChange?: (page: number) => void;
-  pageCount?: number;
-  onPageCountChange?: (count: number) => void;
+  currentShape?: string;
 }
 
 const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
-  ({ bgColor, gridType, onEditorReady, currentTool = "draw", currentColor = "#000000", strokeWidth = 4 }, ref) => {
+  ({ bgColor, gridType, onEditorReady, currentTool = "draw", currentColor = "#000000", strokeWidth = 4, currentShape = "rectangle" }, ref) => {
     const editorRef = useRef<any>(null);
     const [TldrawComponent, setTldrawComponent] = useState<any>(null);
     const isMountedRef = useRef(false);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
       if (isMountedRef.current) return;
@@ -47,8 +44,14 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
     const handleMount = useCallback((editor: any) => {
       editorRef.current = editor;
       editor.user.updateUserPreferences({ color: currentColor });
+      
+      editor.user.updateUserPreferences({ 
+        color: currentColor,
+        size: strokeWidth >= 15 ? "l" : strokeWidth >= 8 ? "m" : "s"
+      });
+      
       onEditorReady?.(editor);
-    }, [onEditorReady, currentColor]);
+    }, [onEditorReady, currentColor, strokeWidth]);
 
     useEffect(() => {
       if (!editorRef.current) return;
@@ -60,48 +63,46 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
         eraser: "eraser",
         geo: "geo",
         arrow: "arrow",
+        line: "line",
         text: "text",
-        sticky: "note",
-        hand: "hand",
+        note: "note",
       };
       
       const tldrawTool = toolMap[currentTool] || "select";
       
       try {
-        if (editorRef.current.getCurrentToolId() !== tldrawTool) {
-          editorRef.current.setCurrentTool(tldrawTool);
-          
-          if (currentTool === "rectangle" || currentTool === "ellipse") {
-            setTimeout(() => {
-              const tool = editorRef.current?.getCurrentTool();
-              if (tool && currentTool === "rectangle") {
-                tool.parent.updateShape({ id: "rectangle", type: "geo", props: { geo: "rectangle" } });
-              } else if (tool && currentTool === "ellipse") {
-                tool.parent.updateShape({ id: "ellipse", type: "geo", props: { geo: "ellipse" } });
-              }
-            }, 50);
+        const editor = editorRef.current;
+        
+        if (editor.getCurrentToolId() !== tldrawTool) {
+          editor.setCurrentTool(tldrawTool);
+        }
+        
+        if (currentTool === "geo" && editor.getCurrentTool()) {
+          const tool = editor.getCurrentTool();
+          if (tool && typeof tool.setGeo === "function") {
+            tool.setGeo(currentShape);
           }
         }
       } catch (e) {
         console.error("Tool change error:", e);
       }
-    }, [currentTool]);
+    }, [currentTool, currentShape]);
 
     useEffect(() => {
       if (editorRef.current) {
         editorRef.current.user.updateUserPreferences({ color: currentColor });
-        
-        const style = editorRef.current.getCurrentStyle();
-        if (style) {
-          editorRef.current.updateStyle([
-            { id: "color", value: currentColor }
-          ]);
-        }
       }
     }, [currentColor]);
 
-    const gridColor = bgColor === "#1e1e1e" || bgColor === "#1a1a2e" ? "#444" : "#ccc";
-    const lineColor = bgColor === "#1e1e1e" || bgColor === "#1a1a2e" ? "#333" : "#ddd";
+    useEffect(() => {
+      if (editorRef.current) {
+        const size = strokeWidth >= 15 ? "l" : strokeWidth >= 8 ? "m" : "s";
+        editorRef.current.user.updateUserPreferences({ size });
+      }
+    }, [strokeWidth]);
+
+    const gridColor = bgColor === "#1e1e1e" || bgColor === "#1a1a2e" ? "#666" : "#ddd";
+    const lineColor = bgColor === "#1e1e1e" || bgColor === "#1a1a2e" ? "#444" : "#eee";
 
     if (!TldrawComponent) {
       return (
@@ -119,30 +120,37 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 
     return (
       <div 
-        className="w-full h-full" 
-        style={{ 
-          backgroundColor: bgColor, 
-          backgroundImage: gridType === "dots" 
-            ? `radial-gradient(circle, ${gridColor} 1.5px, transparent 1.5px)` 
-            : gridType === "lines" 
-              ? `linear-gradient(${lineColor} 1px, transparent 1px), linear-gradient(90deg, ${lineColor} 1px, transparent 1px)` 
-              : "none", 
-          backgroundSize: gridType === "dots" ? "24px 24px" : gridType === "lines" ? "24px 24px" : "auto" 
-        }}
+        ref={containerRef}
+        className="w-full h-full relative"
       >
-        <TldrawComponent 
-          onMount={handleMount} 
-          autoFocus 
-          hideUi
-          components={{ 
-            DebugMenu: () => null,
-            DebugPanel: () => null,
-            SharePanel: () => null,
-            TopPanel: () => null,
-            HelperButtons: () => null,
-            TldrawToolbar: () => null,
-          }} 
+        <div 
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          style={{ 
+            backgroundColor: bgColor, 
+            backgroundImage: gridType === "dots" 
+              ? `radial-gradient(circle, ${gridColor} 1.5px, transparent 1.5px)` 
+              : gridType === "lines" 
+                ? `linear-gradient(${lineColor} 1px, transparent 1px), linear-gradient(90deg, ${lineColor} 1px, transparent 1px)` 
+                : "none", 
+            backgroundSize: gridType === "dots" ? "24px 24px" : gridType === "lines" ? "24px 24px" : "auto",
+            zIndex: 0,
+          }}
         />
+        <div className="absolute inset-0 w-full h-full" style={{ zIndex: 1 }}>
+          <TldrawComponent 
+            onMount={handleMount} 
+            autoFocus 
+            hideUi
+            components={{ 
+              DebugMenu: () => null,
+              DebugPanel: () => null,
+              SharePanel: () => null,
+              TopPanel: () => null,
+              HelperButtons: () => null,
+              TldrawToolbar: () => null,
+            }} 
+          />
+        </div>
       </div>
     );
   }
