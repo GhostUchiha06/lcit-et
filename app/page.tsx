@@ -474,7 +474,7 @@ export default function Home() {
       <section className="cta-section">
         <div className="cta-box">
           <h2>Ready to Teach Smarter?</h2>
-          <p>Join LCIT's digital classroom and make every lecture more interactive and effective.</p>
+          <p>Join LCIT digital classroom and make every lecture more interactive and effective.</p>
           <Link href="/dashboard" className="btn-primary">Get Started Now</Link>
         </div>
       </section>
