@@ -114,6 +114,10 @@ function bbox(o: DrawObject) {
   switch (o.type) {
     case 'rect':
     case 'circle':
+    case 'hexagon':
+    case 'star':
+    case 'chat':
+    case 'checkbox':
       return { x: o.x || 0, y: o.y || 0, w: o.w2 || 0, h: o.h || 0 };
     case 'line':
     case 'arrow':
@@ -935,6 +939,81 @@ export default function TldrawCanvas({
         if (o.fc !== "transparent") c.fill();
         c.stroke();
         break;
+      case "hexagon": {
+        const hcx = (o.x || 0) + (o.w2 || 0) / 2;
+        const hcy = (o.y || 0) + (o.h || 0) / 2;
+        const hrx = (o.w2 || 0) / 2;
+        const hry = (o.h || 0) / 2;
+        c.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i - Math.PI / 2;
+          const px = hcx + hrx * Math.cos(angle);
+          const py = hcy + hry * Math.sin(angle);
+          if (i === 0) c.moveTo(px, py);
+          else c.lineTo(px, py);
+        }
+        c.closePath();
+        if (o.fc !== "transparent") c.fill();
+        c.stroke();
+        break;
+      }
+      case "star": {
+        const scx = (o.x || 0) + (o.w2 || 0) / 2;
+        const scy = (o.y || 0) + (o.h || 0) / 2;
+        const outerRadius = Math.max((o.w2 || 0) / 2, (o.h || 0) / 2);
+        const innerRadius = outerRadius * 0.4;
+        c.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const radius = i % 2 === 0 ? outerRadius : innerRadius;
+          const angle = (Math.PI / 5) * i - Math.PI / 2;
+          const px = scx + radius * Math.cos(angle);
+          const py = scy + radius * Math.sin(angle);
+          if (i === 0) c.moveTo(px, py);
+          else c.lineTo(px, py);
+        }
+        c.closePath();
+        if (o.fc !== "transparent") c.fill();
+        c.stroke();
+        break;
+      }
+      case "chat": {
+        const chatX = o.x || 0;
+        const chatY = o.y || 0;
+        const chatW = o.w2 || 50;
+        const chatH = o.h || 40;
+        const radius = 8;
+        c.beginPath();
+        c.moveTo(chatX + radius, chatY);
+        c.lineTo(chatX + chatW - radius, chatY);
+        c.quadraticCurveTo(chatX + chatW, chatY, chatX + chatW, chatY + radius);
+        c.lineTo(chatX + chatW, chatY + chatH - radius);
+        c.quadraticCurveTo(chatX + chatW, chatY + chatH, chatX + chatW - radius, chatY + chatH);
+        c.lineTo(chatX + 15, chatY + chatH);
+        c.lineTo(chatX + 5, chatY + chatH + 10);
+        c.lineTo(chatX + 10, chatY + chatH);
+        c.lineTo(chatX + radius, chatY + chatH);
+        c.quadraticCurveTo(chatX, chatY + chatH, chatX, chatY + chatH - radius);
+        c.lineTo(chatX, chatY + radius);
+        c.quadraticCurveTo(chatX, chatY, chatX + radius, chatY);
+        c.closePath();
+        if (o.fc !== "transparent") c.fill();
+        c.stroke();
+        break;
+      }
+      case "checkbox": {
+        const cbX = o.x || 0;
+        const cbY = o.y || 0;
+        const cbW = o.w2 || 40;
+        const cbH = o.h || 40;
+        c.strokeRect(cbX, cbY, cbW, cbH);
+        if (o.fc !== "transparent") c.fillRect(cbX, cbY, cbW, cbH);
+        c.beginPath();
+        c.moveTo(cbX + cbW * 0.2, cbY + cbH * 0.5);
+        c.lineTo(cbX + cbW * 0.4, cbY + cbH * 0.7);
+        c.lineTo(cbX + cbW * 0.8, cbY + cbH * 0.3);
+        c.stroke();
+        break;
+      }
       case "text":
         c.font = `${o.fs || 18}px system-ui, sans-serif`;
         c.fillStyle = o.c || "#000";
@@ -962,6 +1041,10 @@ export default function TldrawCanvas({
     switch (o.type) {
       case "rect":
       case "circle":
+      case "hexagon":
+      case "star":
+      case "chat":
+      case "checkbox":
         o.x! += dx; o.y! += dy;
         break;
       case "line":
@@ -1010,14 +1093,10 @@ export default function TldrawCanvas({
         return { ...base, type: "diamond", cx, cy, rx: ww / 2, ry: hh / 2 };
       }
       case "hexagon": {
-        const cx = x + ww / 2;
-        const cy = y + hh / 2;
-        return { ...base, type: "hexagon", cx, cy, rx: ww / 2, ry: hh / 2 };
+        return { ...base, type: "hexagon", x, y, w2: ww, h: hh };
       }
       case "star": {
-        const cx = x + ww / 2;
-        const cy = y + hh / 2;
-        return { ...base, type: "star", cx, cy, rx: ww / 2, ry: hh / 2 };
+        return { ...base, type: "star", x, y, w2: ww, h: hh };
       }
       case "chat": {
         return { ...base, type: "chat", x, y, w2: ww, h: hh };
