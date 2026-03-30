@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import { Eye, EyeOff, Lock, Unlock, Trash2, Plus, ChevronDown, ChevronUp, Layers, Copy, Clipboard } from "lucide-react";
+import { Eye, EyeOff, Lock, Unlock, Trash2, Plus, ChevronDown, ChevronUp, Layers, Square, Circle, Triangle, Minus, ArrowRight, Pencil, Type, StickyNote } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "brushEraser" | "geo" | "line" | "arrow" | "text" | "note";
@@ -45,11 +45,13 @@ interface Layer {
   visible: boolean;
   locked: boolean;
   objects: DrawObject[];
+  thumbnail?: string;
 }
 
 interface TldrawCanvasProps {
   bgColor: string;
   gridType: "dots" | "lines" | "none";
+  gridSpacing?: number;
   currentTool?: Tool;
   currentColor?: string;
   strokeWidth?: number;
@@ -125,6 +127,136 @@ function bbox(o: DrawObject) {
   }
 }
 
+function getObjectWidth(o: DrawObject): number {
+  const bb = bbox(o);
+  return bb ? Math.round(bb.w) : 0;
+}
+
+function getObjectHeight(o: DrawObject): number {
+  const bb = bbox(o);
+  return bb ? Math.round(bb.h) : 0;
+}
+
+function getTypeIcon(type: string) {
+  switch (type) {
+    case 'rect': return Square;
+    case 'circle': return Circle;
+    case 'triangle': return Triangle;
+    case 'line': return Minus;
+    case 'arrow': return ArrowRight;
+    case 'path': return Pencil;
+    case 'text': return Type;
+    case 'diamond': return Square;
+    default: return Square;
+  }
+}
+
+function ObjectThumbnail({ obj, size = 40 }: { obj: DrawObject; size?: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const bb = bbox(obj);
+  
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !bb) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const scale = Math.min(size / (bb.w || 1), size / (bb.h || 1), 1) * 0.8;
+    const offsetX = (size - bb.w * scale) / 2;
+    const offsetY = (size - bb.h * scale) / 2;
+    
+    ctx.clearRect(0, 0, size, size);
+    ctx.save();
+    ctx.scale(scale, scale);
+    ctx.translate(offsetX / scale - bb.x, offsetY / scale - bb.y);
+    
+    ctx.strokeStyle = obj.c || '#000';
+    ctx.fillStyle = obj.fc || 'transparent';
+    ctx.lineWidth = (obj.w || 2) / scale;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    if (obj.lineStyle === "dashed") ctx.setLineDash([10, 8]);
+    else if (obj.lineStyle === "dotted") ctx.setLineDash([3, 5]);
+    else ctx.setLineDash([]);
+    
+    switch (obj.type) {
+      case "rect":
+        if (obj.fc !== "transparent") ctx.fillRect(obj.x || 0, obj.y || 0, obj.w2 || 0, obj.h || 0);
+        ctx.strokeRect(obj.x || 0, obj.y || 0, obj.w2 || 0, obj.h || 0);
+        break;
+      case "circle":
+        ctx.beginPath();
+        ctx.ellipse((obj.x || 0) + (obj.w2 || 0) / 2, (obj.y || 0) + (obj.h || 0) / 2, Math.abs((obj.w2 || 0) / 2) || 1, Math.abs((obj.h || 0) / 2) || 1, 0, 0, Math.PI * 2);
+        if (obj.fc !== "transparent") ctx.fill();
+        ctx.stroke();
+        break;
+      case "triangle":
+        ctx.beginPath();
+        ctx.moveTo(obj.x1 || 0, obj.y1 || 0);
+        ctx.lineTo(obj.x2 || 0, obj.y2 || 0);
+        ctx.lineTo(obj.x3 || 0, obj.y3 || 0);
+        ctx.closePath();
+        if (obj.fc !== "transparent") ctx.fill();
+        ctx.stroke();
+        break;
+      case "diamond":
+        ctx.beginPath();
+        ctx.moveTo(obj.cx || 0, (obj.cy || 0) - (obj.ry || 0));
+        ctx.lineTo((obj.cx || 0) + (obj.rx || 0), obj.cy || 0);
+        ctx.lineTo(obj.cx || 0, (obj.cy || 0) + (obj.ry || 0));
+        ctx.lineTo((obj.cx || 0) - (obj.rx || 0), obj.cy || 0);
+        ctx.closePath();
+        if (obj.fc !== "transparent") ctx.fill();
+        ctx.stroke();
+        break;
+      case "line":
+      case "arrow":
+        ctx.beginPath();
+        ctx.moveTo(obj.x1 || 0, obj.y1 || 0);
+        ctx.lineTo(obj.x2 || 0, obj.y2 || 0);
+        ctx.stroke();
+        if (obj.type === "arrow") {
+          const ang = Math.atan2((obj.y2 || 0) - (obj.y1 || 0), (obj.x2 || 0) - (obj.x1 || 0));
+          const hs = Math.max(12, (obj.w || 2) * 4);
+          ctx.beginPath();
+          ctx.moveTo(obj.x2 || 0, obj.y2 || 0);
+          ctx.lineTo((obj.x2 || 0) - hs * Math.cos(ang - Math.PI / 6), (obj.y2 || 0) - hs * Math.sin(ang - Math.PI / 6));
+          ctx.lineTo((obj.x2 || 0) - hs * Math.cos(ang + Math.PI / 6), (obj.y2 || 0) - hs * Math.sin(ang + Math.PI / 6));
+          ctx.closePath();
+          ctx.fill();
+        }
+        break;
+      case "path":
+        if (obj.pts && obj.pts.length > 1) {
+          ctx.beginPath();
+          ctx.moveTo(obj.pts[0].x, obj.pts[0].y);
+          obj.pts.forEach(p => ctx.lineTo(p.x, p.y));
+          ctx.stroke();
+        }
+        break;
+      case "text":
+        ctx.font = `${obj.fs || 18}px system-ui`;
+        ctx.fillStyle = obj.c || '#000';
+        ctx.fillText(obj.text || '', obj.x || 0, obj.y || 0);
+        break;
+    }
+    ctx.restore();
+  }, [obj, bb, size]);
+  
+  if (!bb) return null;
+  
+  return (
+    <canvas
+      ref={canvasRef}
+      width={size}
+      height={size}
+      className="rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+    />
+  );
+}
+
 function LayersPanel({
   layers,
   currentLayerId,
@@ -137,6 +269,8 @@ function LayersPanel({
   onMoveLayer,
   onSelectObjects,
   selectedObjectIds,
+  onSelectObject,
+  onDeleteObject,
 }: {
   layers: Layer[];
   currentLayerId: string;
@@ -149,10 +283,21 @@ function LayersPanel({
   onMoveLayer: (id: string, direction: 'up' | 'down') => void;
   onSelectObjects: (ids: string[]) => void;
   selectedObjectIds: string[];
+  onSelectObject: (id: string) => void;
+  onDeleteObject: (layerId: string, objectId: string) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [expandedLayers, setExpandedLayers] = useState<Set<string>>(new Set([currentLayerId]));
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setExpandedLayers(prev => {
+      const next = new Set(prev);
+      if (!next.has(currentLayerId)) next.add(currentLayerId);
+      return next;
+    });
+  }, [currentLayerId]);
 
   useEffect(() => {
     if (editingId && inputRef.current) {
@@ -183,8 +328,17 @@ function LayersPanel({
     }
   };
 
+  const toggleExpand = (layerId: string) => {
+    setExpandedLayers(prev => {
+      const next = new Set(prev);
+      if (next.has(layerId)) next.delete(layerId);
+      else next.add(layerId);
+      return next;
+    });
+  };
+
   return (
-    <div className="absolute top-4 right-4 z-30 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="absolute top-4 right-4 z-30 w-72 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="flex items-center justify-between p-3 border-b bg-gray-50 dark:bg-gray-800">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4" />
@@ -199,86 +353,143 @@ function LayersPanel({
           <Plus className="w-4 h-4" />
         </button>
       </div>
-      <div className="max-h-80 overflow-y-auto">
+      <div className="max-h-[70vh] overflow-y-auto">
         {[...layers].reverse().map((layer) => (
-          <div
-            key={layer.id}
-            className={cn(
-              "group border-b border-gray-100 dark:border-gray-800",
-              currentLayerId === layer.id && "bg-blue-50 dark:bg-blue-900/20"
-            )}
-          >
-            <div className="flex items-center gap-2 p-2">
-              <button
-                onClick={() => onToggleVisibility(layer.id)}
-                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                title={layer.visible ? "Hide Layer" : "Show Layer"}
-              >
-                {layer.visible ? (
-                  <Eye className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                ) : (
-                  <EyeOff className="w-4 h-4 text-gray-400" />
-                )}
-              </button>
-              <button
-                onClick={() => onToggleLock(layer.id)}
-                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                title={layer.locked ? "Unlock Layer" : "Lock Layer"}
-              >
-                {layer.locked ? (
-                  <Lock className="w-4 h-4 text-amber-600" />
-                ) : (
-                  <Unlock className="w-4 h-4 text-gray-400" />
-                )}
-              </button>
-              <div className="flex-1 min-w-0">
-                {editingId === layer.id ? (
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onBlur={handleFinishEdit}
-                    onKeyDown={handleKeyDown}
-                    className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-800 border border-blue-500 rounded outline-none"
-                  />
-                ) : (
-                  <button
-                    onClick={() => onSelectLayer(layer.id)}
-                    onDoubleClick={() => handleStartEdit(layer)}
-                    className="w-full text-left px-2 py-1 text-sm truncate rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                  >
-                    {layer.name}
-                  </button>
-                )}
-              </div>
-              <span className="text-xs text-muted-foreground">{layer.objects.length}</span>
-              <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div key={layer.id}>
+            <div
+              className={cn(
+                "group border-b border-gray-100 dark:border-gray-800",
+                currentLayerId === layer.id && "bg-blue-50 dark:bg-blue-900/20"
+              )}
+            >
+              <div className="flex items-center gap-1 p-2">
                 <button
-                  onClick={() => onMoveLayer(layer.id, 'up')}
-                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                  title="Move Up"
+                  onClick={() => toggleExpand(layer.id)}
+                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 >
-                  <ChevronUp className="w-3 h-3" />
+                  {expandedLayers.has(layer.id) ? (
+                    <ChevronDown className="w-3 h-3" />
+                  ) : (
+                    <ChevronUp className="w-3 h-3" />
+                  )}
                 </button>
                 <button
-                  onClick={() => onMoveLayer(layer.id, 'down')}
-                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                  title="Move Down"
+                  onClick={() => onToggleVisibility(layer.id)}
+                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  title={layer.visible ? "Hide Layer" : "Show Layer"}
                 >
-                  <ChevronDown className="w-3 h-3" />
+                  {layer.visible ? (
+                    <Eye className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  ) : (
+                    <EyeOff className="w-4 h-4 text-gray-400" />
+                  )}
                 </button>
-                {layers.length > 1 && (
+                <button
+                  onClick={() => onToggleLock(layer.id)}
+                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  title={layer.locked ? "Unlock Layer" : "Lock Layer"}
+                >
+                  {layer.locked ? (
+                    <Lock className="w-4 h-4 text-amber-600" />
+                  ) : (
+                    <Unlock className="w-4 h-4 text-gray-400" />
+                  )}
+                </button>
+                <div className="flex-1 min-w-0">
+                  {editingId === layer.id ? (
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onBlur={handleFinishEdit}
+                      onKeyDown={handleKeyDown}
+                      className="w-full px-2 py-0.5 text-sm bg-white dark:bg-gray-800 border border-blue-500 rounded outline-none"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => onSelectLayer(layer.id)}
+                      onDoubleClick={() => handleStartEdit(layer)}
+                      className="w-full text-left px-2 py-0.5 text-sm truncate rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      {layer.name}
+                    </button>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground">{layer.objects.length}</span>
+                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={() => onDeleteLayer(layer.id)}
-                    className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500"
-                    title="Delete Layer"
+                    onClick={() => onMoveLayer(layer.id, 'up')}
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                    title="Move Up"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <ChevronUp className="w-3 h-3" />
                   </button>
-                )}
+                  <button
+                    onClick={() => onMoveLayer(layer.id, 'down')}
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                    title="Move Down"
+                  >
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                  {layers.length > 1 && (
+                    <button
+                      onClick={() => onDeleteLayer(layer.id)}
+                      className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500"
+                      title="Delete Layer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
+            
+            {expandedLayers.has(layer.id) && layer.objects.length > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800/50 p-2 space-y-1">
+                {layer.objects.map((obj, idx) => {
+                  const Icon = getTypeIcon(obj.type);
+                  const objWidth = getObjectWidth(obj);
+                  const objHeight = getObjectHeight(obj);
+                  const isSelected = selectedObjectIds.includes(obj.id);
+                  
+                  return (
+                    <div
+                      key={obj.id}
+                      onClick={() => {
+                        onSelectLayer(layer.id);
+                        onSelectObject(obj.id);
+                      }}
+                      className={cn(
+                        "flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-all",
+                        isSelected ? "bg-blue-100 dark:bg-blue-900/30 ring-1 ring-blue-500" : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                      )}
+                    >
+                      <ObjectThumbnail obj={obj} size={36} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <Icon className="w-3 h-3 text-gray-500" />
+                          <span className="text-xs font-medium truncate capitalize">{obj.type}</span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {objWidth} x {objHeight}px
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteObject(layer.id, obj.id);
+                        }}
+                        className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Delete Object"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -289,6 +500,7 @@ function LayersPanel({
 export default function TldrawCanvas({
   bgColor,
   gridType,
+  gridSpacing = 24,
   currentTool = "pencil",
   currentColor = "#1e293b",
   strokeWidth = 2,
@@ -586,11 +798,15 @@ export default function TldrawCanvas({
   };
 
   const mkShape = (tool: string, x1: number, y1: number, x2: number, y2: number): DrawObject => {
-    const base: DrawObject = { id: genId(), type: tool, c: currentColor, fc: fillEnabled ? fillColor : "transparent", w: strokeWidth, op: 1, lineStyle };
+    const minSize = 20;
     const x = Math.min(x1, x2);
     const y = Math.min(y1, y2);
-    const ww = Math.abs(x2 - x1);
-    const hh = Math.abs(y2 - y1);
+    let ww = Math.abs(x2 - x1);
+    let hh = Math.abs(y2 - y1);
+    ww = Math.max(ww, minSize);
+    hh = Math.max(hh, minSize);
+    
+    const base: DrawObject = { id: genId(), type: tool, c: currentColor, fc: fillEnabled ? fillColor : "transparent", w: strokeWidth, op: 1, lineStyle };
     switch (tool) {
       case "line":
         return { ...base, type: "line", x1, y1, x2, y2 };
@@ -601,10 +817,10 @@ export default function TldrawCanvas({
       case "circle":
         return { ...base, type: "circle", x, y, w2: ww, h: hh };
       case "triangle":
-        return { ...base, type: "triangle", x1: x1 + (x2 - x1) / 2, y1, x2, y2, x3: x1, y3: y2 };
+        return { ...base, type: "triangle", x1: x1 + (x2 - x1) / 2, y1, x2: x + ww, y2: y + hh, x3: x, y3: y + hh };
       case "diamond": {
-        const cx = (x1 + x2) / 2;
-        const cy = (y1 + y2) / 2;
+        const cx = x + ww / 2;
+        const cy = y + hh / 2;
         return { ...base, type: "diamond", cx, cy, rx: ww / 2, ry: hh / 2 };
       }
       default:
@@ -618,10 +834,10 @@ export default function TldrawCanvas({
     return clone;
   };
 
-  const addLayer = () => {
+  const addLayer = (name?: string) => {
     const newLayer: Layer = {
       id: genId(),
-      name: `Layer ${layers.length + 1}`,
+      name: name || `Layer ${layers.length + 1}`,
       visible: true,
       locked: false,
       objects: [],
@@ -629,6 +845,7 @@ export default function TldrawCanvas({
     setLayers(prev => [...prev, newLayer]);
     setCurrentLayerId(newLayer.id);
     setSelectedObjectIds([]);
+    return newLayer.id;
   };
 
   const deleteLayer = (id: string) => {
@@ -666,6 +883,18 @@ export default function TldrawCanvas({
       [newLayers[idx], newLayers[idx + 1]] = [newLayers[idx + 1], newLayers[idx]];
       setLayers(newLayers);
     }
+  };
+
+  const deleteObject = (layerId: string, objectId: string) => {
+    setLayers(prev => prev.map(layer => {
+      if (layer.id !== layerId) return layer;
+      return {
+        ...layer,
+        objects: layer.objects.filter(obj => obj.id !== objectId)
+      };
+    }));
+    setSelectedObjectIds(prev => prev.filter(id => id !== objectId));
+    render();
   };
 
   useEffect(() => {
@@ -847,11 +1076,18 @@ export default function TldrawCanvas({
           setCurObj(null);
           return;
         }
+        
+        const newLayerId = addLayer(`${curObj.type} ${Date.now().toString(36).slice(-4)}`);
+        
         setLayers(prev => prev.map(layer => {
-          if (layer.id !== currentLayerId) return layer;
-          return { ...layer, objects: [...layer.objects, curObj] };
+          if (layer.id === newLayerId) {
+            return { ...layer, objects: [curObj] };
+          }
+          return layer;
         }));
+        
         setCurObj(null);
+        setSelectedObjectIds([curObj.id]);
         render();
       }
     };
@@ -949,7 +1185,7 @@ export default function TldrawCanvas({
             return clone;
           });
           setLayers(prev => prev.map(layer => {
-            if (layer.id !== currentLayerId) return layer;
+            if (layer.id === currentLayerId) return layer;
             return { ...layer, objects: [...layer.objects, ...newObjects] };
           }));
           setSelectedObjectIds(newObjects.map(o => o.id));
@@ -1045,7 +1281,7 @@ export default function TldrawCanvas({
             ? `radial-gradient(circle, ${gridColor} 1.5px, transparent 1.5px)`
             : `linear-gradient(${lineColor} 1px, transparent 1px), linear-gradient(90deg, ${lineColor} 1px, transparent 1px)`
           : "none",
-        backgroundSize: showGrid ? (gridType === "dots" ? "24px 24px" : "24px 24px") : "auto",
+        backgroundSize: showGrid ? `${gridSpacing}px ${gridSpacing}px` : "auto",
         cursor: getCursor(),
       }}
     >
@@ -1057,7 +1293,7 @@ export default function TldrawCanvas({
         layers={layers}
         currentLayerId={currentLayerId}
         onSelectLayer={setCurrentLayerId}
-        onAddLayer={addLayer}
+        onAddLayer={() => addLayer()}
         onDeleteLayer={deleteLayer}
         onRenameLayer={renameLayer}
         onToggleVisibility={toggleLayerVisibility}
@@ -1065,6 +1301,8 @@ export default function TldrawCanvas({
         onMoveLayer={moveLayer}
         onSelectObjects={setSelectedObjectIds}
         selectedObjectIds={selectedObjectIds}
+        onSelectObject={(id) => setSelectedObjectIds([id])}
+        onDeleteObject={deleteObject}
       />
     </div>
   );
