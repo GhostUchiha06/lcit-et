@@ -16,9 +16,7 @@ import {
   Plus,
   Trash2,
   Download,
-  HardDrive,
   X,
-  File,
   Loader2,
   Settings,
   Grid3X3,
@@ -34,6 +32,22 @@ import {
   Folder,
   FolderOpen,
   Save,
+  MousePointer2,
+  Highlighter,
+  Square,
+  Circle,
+  ArrowRight,
+  Type,
+  StickyNote,
+  Upload,
+  Undo2,
+  Redo2,
+  Trash,
+  ZoomIn,
+  ZoomOut,
+  Move,
+  Palette,
+  CircleDot,
 } from "lucide-react";
 
 function ViewModeButton({
@@ -85,6 +99,10 @@ const CANVAS_SIZES = [
   { name: "Widescreen (21:9)", value: { width: 2560, height: 1080 } },
 ];
 
+const PEN_COLORS = [
+  "#000000", "#374151", "#dc2626", "#ea580c", "#ca8a04", "#16a34a", "#0891b2", "#2563eb", "#7c3aed", "#db2777",
+];
+
 function BoardSettingsModal({
   isOpen,
   onClose,
@@ -108,8 +126,8 @@ function BoardSettingsModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background rounded-lg shadow-xl w-full max-w-md overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b">
+      <div className="bg-background rounded-xl shadow-2xl w-full max-w-md overflow-hidden border">
+        <div className="flex items-center justify-between p-4 border-b bg-muted/30">
           <h3 className="font-semibold flex items-center gap-2">
             <Settings className="w-5 h-5" />
             Board Settings
@@ -118,23 +136,23 @@ function BoardSettingsModal({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-4 space-y-6">
+        <div className="p-5 space-y-5">
           <div>
-            <label className="block text-sm font-medium mb-2">Background Color</label>
+            <label className="block text-sm font-medium mb-3">Background Color</label>
             <div className="flex flex-wrap gap-2">
               {BG_COLORS.map((color) => (
                 <button
                   key={color.value}
                   onClick={() => onBgColorChange(color.value)}
                   className={cn(
-                    "w-10 h-10 rounded-lg border-2 transition-all",
-                    bgColor === color.value ? "border-primary scale-110" : "border-border"
+                    "w-10 h-10 rounded-lg border-2 transition-all hover:scale-105",
+                    bgColor === color.value ? "border-primary scale-110 ring-2 ring-primary/30" : "border-border"
                   )}
                   style={{ backgroundColor: color.value }}
                   title={color.name}
                 >
                   {bgColor === color.value && (
-                    <Check className={cn("w-5 h-5 mx-auto", color.value === "#ffffff" || color.value === "#f5f5f5" || color.value === "#fffef0" ? "text-gray-800" : "text-white")} />
+                    <Check className={cn("w-5 h-5 mx-auto", ["#ffffff", "#f5f5f5", "#fffef0"].includes(color.value) ? "text-gray-800" : "text-white")} />
                   )}
                 </button>
               ))}
@@ -142,28 +160,39 @@ function BoardSettingsModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Grid Type</label>
+            <label className="block text-sm font-medium mb-3">Grid Type</label>
             <div className="flex gap-2">
-              <button onClick={() => onGridTypeChange("dots")} className={cn("flex-1 py-2 px-4 rounded-lg border transition-all flex items-center justify-center gap-2", gridType === "dots" ? "border-primary bg-primary/10" : "border-border hover:bg-secondary")}>
-                <Grid3X3 className="w-4 h-4" />Dots
-              </button>
-              <button onClick={() => onGridTypeChange("lines")} className={cn("flex-1 py-2 px-4 rounded-lg border transition-all flex items-center justify-center gap-2", gridType === "lines" ? "border-primary bg-primary/10" : "border-border hover:bg-secondary")}>
-                <Grid3X3 className="w-4 h-4" />Lines
-              </button>
-              <button onClick={() => onGridTypeChange("none")} className={cn("flex-1 py-2 px-4 rounded-lg border transition-all flex items-center justify-center gap-2", gridType === "none" ? "border-primary bg-primary/10" : "border-border hover:bg-secondary")}>
-                <X className="w-4 h-4" />None
-              </button>
+              {(["dots", "lines", "none"] as const).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => onGridTypeChange(type)}
+                  className={cn(
+                    "flex-1 py-2.5 px-4 rounded-lg border transition-all flex items-center justify-center gap-2 font-medium text-sm",
+                    gridType === type ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"
+                  )}
+                >
+                  {type === "dots" && <Grid3X3 className="w-4 h-4" />}
+                  {type === "lines" && <Grid3X3 className="w-4 h-4" />}
+                  {type === "none" && <X className="w-4 h-4" />}
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </button>
+              ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Canvas Size</label>
+            <label className="block text-sm font-medium mb-3">Canvas Size</label>
             <div className="grid grid-cols-2 gap-2">
               {CANVAS_SIZES.map((size) => (
                 <button
                   key={size.name}
                   onClick={() => onCanvasSizeChange(size.value)}
-                  className={cn("py-2 px-3 rounded-lg border transition-all text-sm", canvasSize.width === size.value.width && canvasSize.height === size.value.height ? "border-primary bg-primary/10" : "border-border hover:bg-secondary")}
+                  className={cn(
+                    "py-2.5 px-3 rounded-lg border transition-all text-sm font-medium",
+                    canvasSize.width === size.value.width && canvasSize.height === size.value.height
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-secondary"
+                  )}
                 >
                   {size.name}
                 </button>
@@ -171,8 +200,11 @@ function BoardSettingsModal({
             </div>
           </div>
         </div>
-        <div className="p-4 border-t">
-          <button onClick={onClose} className="w-full py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+        <div className="p-4 border-t bg-muted/30">
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+          >
             Done
           </button>
         </div>
@@ -441,70 +473,196 @@ function ImageViewer({ file, onClose }: { file: DriveFile; onClose: () => void }
   );
 }
 
-function DrawingToolbar({ strokeWidth, onStrokeWidthChange, eraserSize, onEraserSizeChange, eraserSoftness, onEraserSoftnessChange, currentTool, onToolChange }: { strokeWidth: number; onStrokeWidthChange: (width: number) => void; eraserSize: number; onEraserSizeChange: (size: number) => void; eraserSoftness: number; onEraserSoftnessChange: (softness: number) => void; currentTool: "pen" | "eraser"; onToolChange: (tool: "pen" | "eraser") => void }) {
-  const [showOptions, setShowOptions] = useState(false);
+type Tool = "select" | "pen" | "eraser" | "highlighter" | "rectangle" | "ellipse" | "arrow" | "line" | "text" | "sticky" | "image";
+
+function FloatingToolbar({
+  currentTool,
+  onToolChange,
+  currentColor,
+  onColorChange,
+  strokeWidth,
+  onStrokeWidthChange,
+  onClear,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+}: {
+  currentTool: Tool;
+  onToolChange: (tool: Tool) => void;
+  currentColor: string;
+  onColorChange: (color: string) => void;
+  strokeWidth: number;
+  onStrokeWidthChange: (width: number) => void;
+  onClear: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+}) {
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showStrokeSlider, setShowStrokeSlider] = useState(false);
+
+  const tools = [
+    { id: "select" as Tool, icon: MousePointer2, label: "Select" },
+    { id: "pen" as Tool, icon: Pencil, label: "Pen" },
+    { id: "highlighter" as Tool, icon: Highlighter, label: "Highlighter" },
+    { id: "eraser" as Tool, icon: Eraser, label: "Eraser" },
+    { id: "rectangle" as Tool, icon: Square, label: "Rectangle" },
+    { id: "ellipse" as Tool, icon: Circle, label: "Ellipse" },
+    { id: "line" as Tool, icon: ArrowRight, label: "Line" },
+    { id: "arrow" as Tool, icon: ArrowRight, label: "Arrow" },
+    { id: "text" as Tool, icon: Type, label: "Text" },
+    { id: "sticky" as Tool, icon: StickyNote, label: "Sticky Note" },
+  ];
 
   return (
-    <div className="relative">
-      <button onClick={() => setShowOptions(!showOptions)} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors text-sm", showOptions ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-secondary/80")}>
-        {currentTool === "pen" ? <Pencil className="w-4 h-4" /> : <Eraser className="w-4 h-4" />}
-        <span>{currentTool === "pen" ? "Pen" : "Eraser"}</span>
-        <ChevronDown className="w-4 h-4" />
-      </button>
+    <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-1">
+      <div className="bg-background/95 backdrop-blur-sm rounded-xl shadow-xl border p-2 flex flex-col gap-1">
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          className={cn("p-2.5 rounded-lg transition-all", canUndo ? "hover:bg-secondary text-foreground" : "text-muted-foreground opacity-50")}
+          title="Undo (Ctrl+Z)"
+        >
+          <Undo2 className="w-5 h-5" />
+        </button>
+        <button
+          onClick={onRedo}
+          disabled={!canRedo}
+          className={cn("p-2.5 rounded-lg transition-all", canRedo ? "hover:bg-secondary text-foreground" : "text-muted-foreground opacity-50")}
+          title="Redo (Ctrl+Y)"
+        >
+          <Redo2 className="w-5 h-5" />
+        </button>
 
-      {showOptions && (
-        <div className="absolute top-full left-0 mt-2 p-4 bg-background rounded-lg shadow-lg border w-72 z-50">
-          <div className="space-y-4">
-            <div className="flex gap-2 mb-4">
-              <button onClick={() => onToolChange("pen")} className={cn("flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-colors", currentTool === "pen" ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-secondary/80")}>
-                <Pencil className="w-4 h-4" />Pen
-              </button>
-              <button onClick={() => onToolChange("eraser")} className={cn("flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-colors", currentTool === "eraser" ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-secondary/80")}>
-                <Eraser className="w-4 h-4" />Eraser
-              </button>
-            </div>
+        <div className="w-full h-px bg-border my-1" />
 
-            {currentTool === "pen" && (
-              <div>
-                <div className="flex items-center justify-between mb-2"><label className="text-sm font-medium">Stroke Thickness</label><span className="text-sm text-muted-foreground">{strokeWidth}px</span></div>
-                <input type="range" min="1" max="20" value={strokeWidth} onChange={(e) => onStrokeWidthChange(parseInt(e.target.value))} className="w-full accent-primary" />
-                <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>Thin</span><span>Thick</span></div>
+        {tools.map((tool) => (
+          <button
+            key={tool.id}
+            onClick={() => onToolChange(tool.id)}
+            className={cn(
+              "p-2.5 rounded-lg transition-all relative group",
+              currentTool === tool.id ? "bg-primary text-primary-foreground" : "hover:bg-secondary text-foreground"
+            )}
+            title={tool.label}
+          >
+            <tool.icon className="w-5 h-5" />
+            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              {tool.label}
+            </span>
+          </button>
+        ))}
+
+        <div className="w-full h-px bg-border my-1" />
+
+        <div className="relative">
+          <button
+            onClick={() => { setShowColorPicker(!showColorPicker); setShowStrokeSlider(false); }}
+            className={cn("p-2.5 rounded-lg transition-all w-full", showColorPicker ? "bg-primary text-primary-foreground" : "hover:bg-secondary text-foreground")}
+            title="Color"
+          >
+            <div className="w-5 h-5 rounded-full border-2" style={{ backgroundColor: currentColor }} />
+          </button>
+          {showColorPicker && (
+            <div className="absolute left-full ml-2 top-0 bg-background/95 backdrop-blur-sm rounded-xl shadow-xl border p-3">
+              <div className="grid grid-cols-5 gap-1.5">
+                {PEN_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => { onColorChange(color); setShowColorPicker(false); }}
+                    className={cn(
+                      "w-6 h-6 rounded-full transition-all hover:scale-110",
+                      currentColor === color ? "ring-2 ring-primary ring-offset-2" : ""
+                    )}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
               </div>
-            )}
-
-            {currentTool === "eraser" && (
-              <>
-                <div>
-                  <div className="flex items-center justify-between mb-2"><label className="text-sm font-medium">Eraser Size</label><span className="text-sm text-muted-foreground">{eraserSize}px</span></div>
-                  <input type="range" min="5" max="100" value={eraserSize} onChange={(e) => onEraserSizeChange(parseInt(e.target.value))} className="w-full accent-primary" />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>Small</span><span>Large</span></div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2"><label className="text-sm font-medium">Softness</label><span className="text-sm text-muted-foreground">{eraserSoftness}%</span></div>
-                  <input type="range" min="0" max="100" value={eraserSoftness} onChange={(e) => onEraserSoftnessChange(parseInt(e.target.value))} className="w-full accent-primary" />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>Hard</span><span>Soft</span></div>
-                </div>
-              </>
-            )}
-
-            <button onClick={() => setShowOptions(false)} className="w-full py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors mt-2">Done</button>
-          </div>
+            </div>
+          )}
         </div>
-      )}
+
+        <div className="relative">
+          <button
+            onClick={() => { setShowStrokeSlider(!showStrokeSlider); setShowColorPicker(false); }}
+            className={cn("p-2.5 rounded-lg transition-all w-full", showStrokeSlider ? "bg-primary text-primary-foreground" : "hover:bg-secondary text-foreground")}
+            title="Stroke Width"
+          >
+            <CircleDot className="w-5 h-5" />
+          </button>
+          {showStrokeSlider && (
+            <div className="absolute left-full ml-2 top-0 bg-background/95 backdrop-blur-sm rounded-xl shadow-xl border p-3 w-40">
+              <label className="text-xs text-muted-foreground mb-2 block">Stroke Width</label>
+              <input
+                type="range"
+                min="1"
+                max="20"
+                value={strokeWidth}
+                onChange={(e) => onStrokeWidthChange(parseInt(e.target.value))}
+                className="w-full accent-primary"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>1</span>
+                <span>{strokeWidth}px</span>
+                <span>20</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="w-full h-px bg-border my-1" />
+
+        <button
+          onClick={onClear}
+          className="p-2.5 rounded-lg hover:bg-destructive/10 text-destructive transition-all"
+          title="Clear Canvas"
+        >
+          <Trash className="w-5 h-5" />
+        </button>
+      </div>
     </div>
   );
 }
 
-function WhiteboardPanel({ onOpenSettings, bgColor, gridType, strokeWidth, eraserSize, eraserSoftness, currentTool, onToolChange, onSaveComplete }: { onOpenSettings: () => void; bgColor: string; gridType: "dots" | "lines" | "none"; strokeWidth: number; eraserSize: number; eraserSoftness: number; currentTool: "pen" | "eraser"; onToolChange: (tool: "pen" | "eraser") => void; onSaveComplete?: () => void }) {
+function WhiteboardPanel({
+  onOpenSettings,
+  bgColor,
+  gridType,
+  currentColor,
+  onColorChange,
+  strokeWidth,
+  onStrokeWidthChange,
+  onSaveComplete,
+}: {
+  onOpenSettings: () => void;
+  bgColor: string;
+  gridType: "dots" | "lines" | "none";
+  currentColor: string;
+  onColorChange: (color: string) => void;
+  strokeWidth: number;
+  onStrokeWidthChange: (width: number) => void;
+  onSaveComplete?: () => void;
+}) {
   const [isExporting, setIsExporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [savePassword, setSavePassword] = useState('');
+  const [savePassword, setSavePassword] = useState("");
   const [showSavePasswordPrompt, setShowSavePasswordPrompt] = useState(false);
+  const [currentTool, setCurrentTool] = useState<Tool>("pen");
   const editorRef = useRef<any>(null);
   const tldrawRef = useRef<any>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   const handleEditorReady = useCallback((editor: any) => {
     editorRef.current = editor;
+    
+    editor.store.listen(() => {
+      const history = editor.getHistory();
+      setCanUndo(history.canUndo());
+      setCanRedo(history.canRedo());
+    });
   }, []);
 
   const formatTimestamp = () => {
@@ -512,6 +670,23 @@ function WhiteboardPanel({ onOpenSettings, bgColor, gridType, strokeWidth, erase
     const date = now.toISOString().slice(0, 10);
     const time = now.toTimeString().slice(0, 8).replace(/:/g, "-");
     return { date, time, fileName: `${date}::${time}` };
+  };
+
+  const handleUndo = () => {
+    editorRef.current?.undo();
+  };
+
+  const handleRedo = () => {
+    editorRef.current?.redo();
+  };
+
+  const handleClear = () => {
+    if (editorRef.current) {
+      const shapeIds = editorRef.current.getCurrentPageShapeIds();
+      if (shapeIds.size > 0) {
+        editorRef.current.deleteShapes([...shapeIds]);
+      }
+    }
   };
 
   const handleExport = async () => {
@@ -551,11 +726,10 @@ function WhiteboardPanel({ onOpenSettings, bgColor, gridType, strokeWidth, erase
       return;
     }
 
-    // Check if password is required
     const requiredPassword = process.env.NEXT_PUBLIC_SAVE_PASSWORD;
     if (requiredPassword) {
       setIsSaving(true);
-      setSavePassword('');
+      setSavePassword("");
       setShowSavePasswordPrompt(true);
       return;
     }
@@ -571,7 +745,7 @@ function WhiteboardPanel({ onOpenSettings, bgColor, gridType, strokeWidth, erase
       await performSave();
     } else {
       toast.error("Incorrect password");
-      setSavePassword('');
+      setSavePassword("");
     }
   };
 
@@ -597,8 +771,6 @@ function WhiteboardPanel({ onOpenSettings, bgColor, gridType, strokeWidth, erase
       }
       const base64 = btoa(binary);
 
-      console.log("[SmartBoard] Base64 length:", base64.length);
-
       const { date, fileName } = formatTimestamp();
 
       const response = await fetch("/api/drive", {
@@ -612,7 +784,6 @@ function WhiteboardPanel({ onOpenSettings, bgColor, gridType, strokeWidth, erase
       });
 
       const res = await response.json();
-      console.log("[SmartBoard] Save response:", res);
       if (res.success) {
         toast.success(`Saved: ${fileName}.png`);
         onSaveComplete?.();
@@ -629,68 +800,100 @@ function WhiteboardPanel({ onOpenSettings, bgColor, gridType, strokeWidth, erase
   };
 
   return (
-    <div className="flex flex-col h-full flex-1 bg-background">
-      <div className="flex items-center justify-between p-4 border-b bg-card">
-        <div className="flex items-center gap-2">
-          <h2 className="font-semibold flex items-center gap-2"><PenTool className="w-5 h-5" />Whiteboard</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={onOpenSettings} className="flex items-center gap-2 px-3 py-1.5 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors text-sm" title="Board Settings"><Settings className="w-4 h-4" /></button>
-          <button onClick={handleExport} disabled={isExporting} className="flex items-center gap-2 px-3 py-1.5 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors text-sm"><Download className="w-4 h-4" />Export</button>
-          <button onClick={handleSaveToDrive} disabled={isExporting} className="flex items-center gap-2 px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors text-sm">{isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Save</button>
-        </div>
+    <div className="relative flex flex-col h-full bg-background overflow-hidden">
+      <TldrawCanvas
+        ref={tldrawRef}
+        bgColor={bgColor}
+        gridType={gridType}
+        onEditorReady={handleEditorReady}
+        currentTool={currentTool}
+        currentColor={currentColor}
+        strokeWidth={strokeWidth}
+      />
+
+      <FloatingToolbar
+        currentTool={currentTool}
+        onToolChange={setCurrentTool}
+        currentColor={currentColor}
+        onColorChange={onColorChange}
+        strokeWidth={strokeWidth}
+        onStrokeWidthChange={onStrokeWidthChange}
+        onClear={handleClear}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+      />
+
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <button
+          onClick={onOpenSettings}
+          className="p-3 bg-background/95 backdrop-blur-sm rounded-xl shadow-lg border hover:bg-secondary transition-all"
+          title="Board Settings"
+        >
+          <Settings className="w-5 h-5" />
+        </button>
+        <button
+          onClick={handleExport}
+          disabled={isExporting}
+          className="flex items-center gap-2 px-4 py-3 bg-background/95 backdrop-blur-sm rounded-xl shadow-lg border hover:bg-secondary transition-all text-sm font-medium"
+        >
+          {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          Export
+        </button>
+        <button
+          onClick={handleSaveToDrive}
+          disabled={isExporting}
+          className="flex items-center gap-2 px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg transition-all text-sm font-medium"
+        >
+          {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Save
+        </button>
       </div>
-      <TldrawCanvas ref={tldrawRef} bgColor={bgColor} gridType={gridType} onEditorReady={handleEditorReady} />
-      <div className="flex items-center justify-center p-4 border-t bg-card">
-        <DrawingToolbar strokeWidth={strokeWidth} onStrokeWidthChange={() => {}} eraserSize={eraserSize} onEraserSizeChange={() => {}} eraserSoftness={eraserSoftness} onEraserSoftnessChange={() => {}} currentTool={currentTool} onToolChange={onToolChange} />
-      </div>
-    </div>
-    );
-    
-    // Save password prompt modal
-    if (showSavePasswordPrompt) {
-      return (
+
+      {showSavePasswordPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg p-6 w-96 max-w-full">
-            <h2 className="text-xl font-bold mb-4">Password Required</h2>
-            <p className="mb-4 text-gray-600">Enter password to save to Google Drive:</p>
-            <div className="mb-4">
-              <input
-                type="password"
-                value={savePassword}
-                onChange={(e) => setSavePassword(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSavePasswordSubmit()}
-                placeholder="Enter password"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                autoFocus
-              />
-            </div>
-            <div className="flex justify-end space-x-3">
+          <div className="bg-background rounded-xl p-6 w-96 max-w-full shadow-2xl border">
+            <h2 className="text-lg font-bold mb-2">Password Required</h2>
+            <p className="mb-4 text-sm text-muted-foreground">Enter password to save to Google Drive:</p>
+            <input
+              type="password"
+              value={savePassword}
+              onChange={(e) => setSavePassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSavePasswordSubmit()}
+              placeholder="Enter password"
+              className="w-full px-4 py-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-primary"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
               <button
-                onClick={() => {
-                  setShowSavePasswordPrompt(false);
-                  setIsSaving(false);
-                }}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                onClick={() => { setShowSavePasswordPrompt(false); setIsSaving(false); }}
+                className="px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSavePasswordSubmit}
                 disabled={!savePassword}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 Save
               </button>
             </div>
           </div>
         </div>
-      );
-    }
-  }
+      )}
+    </div>
+  );
+}
 
-  function ResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
-  return <div className="resize-handle w-1 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0" onMouseDown={onMouseDown} />;
+function ResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
+  return (
+    <div
+      className="resize-handle w-1 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0"
+      onMouseDown={onMouseDown}
+    />
+  );
 }
 
 export default function SmartBoard() {
@@ -707,10 +910,8 @@ export default function SmartBoard() {
   const [gridType, setGridType] = useState<"dots" | "lines" | "none">("dots");
   const [canvasSize, setCanvasSize] = useState({ width: 1920, height: 1080 });
   const [viewingFile, setViewingFile] = useState<DriveFile | null>(null);
+  const [currentColor, setCurrentColor] = useState("#000000");
   const [strokeWidth, setStrokeWidth] = useState(4);
-  const [eraserSize, setEraserSize] = useState(20);
-  const [eraserSoftness, setEraserSoftness] = useState(50);
-  const [currentTool, setCurrentTool] = useState<"pen" | "eraser">("pen");
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
 
@@ -719,7 +920,6 @@ export default function SmartBoard() {
     try {
       const response = await fetch("/api/drive?action=structure");
       const data = await response.json();
-      console.log("[SmartBoard] API response:", JSON.stringify(data, null, 2));
       if (data.success !== false) {
         const structure = data.structure || [];
         setFolderStructure(structure);
@@ -729,7 +929,6 @@ export default function SmartBoard() {
           toast.info(`Found ${totalFolders} folders with ${totalFiles} files`);
         }
       } else {
-        console.error("[SmartBoard] API error:", data.error);
         toast.error(data.error || "Failed to load files");
       }
     } catch (error) {
@@ -774,14 +973,18 @@ export default function SmartBoard() {
       setGridType(settings.gridType || "dots");
       if (settings.canvasSize) setCanvasSize(settings.canvasSize);
       if (settings.strokeWidth) setStrokeWidth(settings.strokeWidth);
-      if (settings.eraserSize) setEraserSize(settings.eraserSize);
-      if (settings.eraserSoftness) setEraserSoftness(settings.eraserSoftness);
+      if (settings.currentColor) setCurrentColor(settings.currentColor);
     }
     loadFolderStructure();
   }, [loadFolderStructure]);
 
-  useEffect(() => { localStorage.setItem("smartboard-state", JSON.stringify({ viewMode, splitRatio, slides, currentSlide })); }, [viewMode, splitRatio, slides, currentSlide]);
-  useEffect(() => { localStorage.setItem("smartboard-settings", JSON.stringify({ bgColor, gridType, canvasSize, strokeWidth, eraserSize, eraserSoftness })); }, [bgColor, gridType, canvasSize, strokeWidth, eraserSize, eraserSoftness]);
+  useEffect(() => {
+    localStorage.setItem("smartboard-state", JSON.stringify({ viewMode, splitRatio, slides, currentSlide }));
+  }, [viewMode, splitRatio, slides, currentSlide]);
+
+  useEffect(() => {
+    localStorage.setItem("smartboard-settings", JSON.stringify({ bgColor, gridType, canvasSize, strokeWidth, currentColor }));
+  }, [bgColor, gridType, canvasSize, strokeWidth, currentColor]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -791,7 +994,6 @@ export default function SmartBoard() {
       else if (e.key === "2") setViewMode("whiteboard");
       else if (e.key === "3") setViewMode("both");
       else if (e.key === "Escape" && viewingFile) setViewingFile(null);
-      else if (e.key === "e" || e.key === "E") setCurrentTool((t) => (t === "pen" ? "eraser" : "pen"));
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -848,9 +1050,18 @@ export default function SmartBoard() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      <BoardSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} bgColor={bgColor} onBgColorChange={setBgColor} canvasSize={canvasSize} onCanvasSizeChange={setCanvasSize} gridType={gridType} onGridTypeChange={setGridType} />
+      <BoardSettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        bgColor={bgColor}
+        onBgColorChange={setBgColor}
+        canvasSize={canvasSize}
+        onCanvasSizeChange={setCanvasSize}
+        gridType={gridType}
+        onGridTypeChange={setGridType}
+      />
 
-      <header className="flex items-center justify-between p-4 border-b bg-card">
+      <header className="flex items-center justify-between p-4 border-b bg-card flex-shrink-0">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-bold">LCIT ET</h1>
           <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
@@ -861,13 +1072,22 @@ export default function SmartBoard() {
         </div>
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-lg">
-            <span className="font-medium">Shortcuts:</span><span>F Fullscreen</span><span>1/2/3 Modes</span><span>E Tool</span>
+            <span className="font-medium">Shortcuts:</span>
+            <span>F Fullscreen</span>
+            <span>1/2/3 Modes</span>
           </div>
-          <button onClick={() => loadFolderStructure(true)} className="flex items-center gap-2 px-3 py-1.5 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors text-sm">
+          <button
+            onClick={() => loadFolderStructure(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors text-sm"
+          >
             {isLoadingFiles ? <Loader2 className="w-4 h-4 animate-spin" /> : <Folder className="w-4 h-4 text-primary" />}
             <span className="hidden md:inline">Drive</span>
           </button>
-          <button onClick={toggleFullscreen} className="p-2 hover:bg-secondary rounded-lg transition-colors" title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}>
+          <button
+            onClick={toggleFullscreen}
+            className="p-2 hover:bg-secondary rounded-lg transition-colors"
+            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          >
             {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
           </button>
         </div>
@@ -876,23 +1096,83 @@ export default function SmartBoard() {
       <div ref={containerRef} className="flex-1 flex overflow-hidden">
         {viewMode === "notes" && (
           <div className="w-full">
-            {viewingFile ? (viewingFile.mimeType === "application/pdf" ? <PDFViewer file={viewingFile} onClose={() => setViewingFile(null)} /> : <ImageViewer file={viewingFile} onClose={() => setViewingFile(null)} />) : (
-              <NotesPanel slides={slides} currentSlide={currentSlide} onSlideChange={setCurrentSlide} onAddSlide={addSlide} onDeleteSlide={deleteSlide} onUpdateSlide={updateSlide} folderStructure={folderStructure} onFileClick={handleFileClick} onFolderClick={handleFolderClick} isLoadingFiles={isLoadingFiles} onRefreshFiles={() => loadFolderStructure()} expandedFolders={expandedFolders} />
+            {viewingFile ? (
+              viewingFile.mimeType === "application/pdf" ? (
+                <PDFViewer file={viewingFile} onClose={() => setViewingFile(null)} />
+              ) : (
+                <ImageViewer file={viewingFile} onClose={() => setViewingFile(null)} />
+              )
+            ) : (
+              <NotesPanel
+                slides={slides}
+                currentSlide={currentSlide}
+                onSlideChange={setCurrentSlide}
+                onAddSlide={addSlide}
+                onDeleteSlide={deleteSlide}
+                onUpdateSlide={updateSlide}
+                folderStructure={folderStructure}
+                onFileClick={handleFileClick}
+                onFolderClick={handleFolderClick}
+                isLoadingFiles={isLoadingFiles}
+                onRefreshFiles={() => loadFolderStructure()}
+                expandedFolders={expandedFolders}
+              />
             )}
           </div>
         )}
         {viewMode === "whiteboard" && (
-          <div className="w-full"><WhiteboardPanel onOpenSettings={() => setShowSettingsModal(true)} bgColor={bgColor} gridType={gridType} strokeWidth={strokeWidth} eraserSize={eraserSize} eraserSoftness={eraserSoftness} currentTool={currentTool} onToolChange={setCurrentTool} onSaveComplete={() => loadFolderStructure(true)} /></div>
+          <div className="w-full">
+            <WhiteboardPanel
+              onOpenSettings={() => setShowSettingsModal(true)}
+              bgColor={bgColor}
+              gridType={gridType}
+              currentColor={currentColor}
+              onColorChange={setCurrentColor}
+              strokeWidth={strokeWidth}
+              onStrokeWidthChange={setStrokeWidth}
+              onSaveComplete={() => loadFolderStructure(true)}
+            />
+          </div>
         )}
         {viewMode === "both" && (
           <>
             <div style={{ width: `${splitRatio}%` }} className="flex flex-col">
-              {viewingFile ? (viewingFile.mimeType === "application/pdf" ? <PDFViewer file={viewingFile} onClose={() => setViewingFile(null)} /> : <ImageViewer file={viewingFile} onClose={() => setViewingFile(null)} />) : (
-                <NotesPanel slides={slides} currentSlide={currentSlide} onSlideChange={setCurrentSlide} onAddSlide={addSlide} onDeleteSlide={deleteSlide} onUpdateSlide={updateSlide} folderStructure={folderStructure} onFileClick={handleFileClick} onFolderClick={handleFolderClick} isLoadingFiles={isLoadingFiles} onRefreshFiles={() => loadFolderStructure()} expandedFolders={expandedFolders} />
+              {viewingFile ? (
+                viewingFile.mimeType === "application/pdf" ? (
+                  <PDFViewer file={viewingFile} onClose={() => setViewingFile(null)} />
+                ) : (
+                  <ImageViewer file={viewingFile} onClose={() => setViewingFile(null)} />
+                )
+              ) : (
+                <NotesPanel
+                  slides={slides}
+                  currentSlide={currentSlide}
+                  onSlideChange={setCurrentSlide}
+                  onAddSlide={addSlide}
+                  onDeleteSlide={deleteSlide}
+                  onUpdateSlide={updateSlide}
+                  folderStructure={folderStructure}
+                  onFileClick={handleFileClick}
+                  onFolderClick={handleFolderClick}
+                  isLoadingFiles={isLoadingFiles}
+                  onRefreshFiles={() => loadFolderStructure()}
+                  expandedFolders={expandedFolders}
+                />
               )}
             </div>
             <ResizeHandle onMouseDown={handleResizeStart} />
-            <div style={{ width: `${100 - splitRatio}%` }}><WhiteboardPanel onOpenSettings={() => setShowSettingsModal(true)} bgColor={bgColor} gridType={gridType} strokeWidth={strokeWidth} eraserSize={eraserSize} eraserSoftness={eraserSoftness} currentTool={currentTool} onToolChange={setCurrentTool} onSaveComplete={() => loadFolderStructure(true)} /></div>
+            <div style={{ width: `${100 - splitRatio}%` }}>
+              <WhiteboardPanel
+                onOpenSettings={() => setShowSettingsModal(true)}
+                bgColor={bgColor}
+                gridType={gridType}
+                currentColor={currentColor}
+                onColorChange={setCurrentColor}
+                strokeWidth={strokeWidth}
+                onStrokeWidthChange={setStrokeWidth}
+                onSaveComplete={() => loadFolderStructure(true)}
+              />
+            </div>
           </>
         )}
       </div>
