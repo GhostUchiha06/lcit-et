@@ -726,15 +726,74 @@ const tools = [
 ];
 
 const shapeOptions = [
-  { id: "rectangle", label: "Rectangle", icon: Square },
-  { id: "ellipse", label: "Ellipse", icon: Circle },
-  { id: "diamond", label: "Diamond", icon: Hexagon },
-  { id: "triangle", label: "Triangle", icon: Triangle },
-  { id: "hexagon", label: "Hexagon", icon: Hexagon },
-  { id: "star", label: "Star", icon: Star },
-  { id: "chat", label: "Chat", icon: MessageSquare },
-  { id: "checkbox", label: "Checkbox", icon: CheckSquare },
+  { id: "rectangle", label: "Rectangle", icon: "rect" },
+  { id: "ellipse", label: "Ellipse", icon: "ellipse" },
+  { id: "diamond", label: "Diamond", icon: "diamond" },
+  { id: "triangle", label: "Triangle", icon: "triangle" },
+  { id: "hexagon", label: "Hexagon", icon: "hexagon" },
+  { id: "star", label: "Star", icon: "star" },
+  { id: "chat", label: "Chat", icon: "chat" },
+  { id: "checkbox", label: "Checkbox", icon: "checkbox" },
 ];
+
+function ShapeIcon({ type, className }: { type: string; className?: string }) {
+  const size = 24;
+  const s = size;
+  
+  switch (type) {
+    case "rect":
+      return (
+        <svg className={className} width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+        </svg>
+      );
+    case "ellipse":
+      return (
+        <svg className={className} width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <ellipse cx="12" cy="12" rx="9" ry="7" />
+        </svg>
+      );
+    case "diamond":
+      return (
+        <svg className={className} width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2 L22 12 L12 22 L2 12 Z" />
+        </svg>
+      );
+    case "triangle":
+      return (
+        <svg className={className} width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 3 L22 21 L2 21 Z" />
+        </svg>
+      );
+    case "hexagon":
+      return (
+        <svg className={className} width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z" />
+        </svg>
+      );
+    case "star":
+      return (
+        <svg className={className} width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2 L15 9 L22 9 L17 14 L19 22 L12 18 L5 22 L7 14 L2 9 L9 9 Z" />
+        </svg>
+      );
+    case "chat":
+      return (
+        <svg className={className} width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 11.5 C21 16.19 16.97 20 12 20 C10.76 20 9.59 19.76 8.52 19.34 L3 20 L4.66 14.48 C4.24 13.41 4 12.24 4 11 C4 6.03 8.03 2 13 2 C17.97 2 22 6.03 22 11 C22 13.24 21.76 15.41 21.34 16.48 C21.14 17.08 21 17.68 21 18.3 L21 20 L21 18.3 C21 17.68 20.86 17.08 20.66 16.48 C20.24 15.41 20 13.24 20 11 C20 8.97 20.44 6.97 21.21 5.21" />
+        </svg>
+      );
+    case "checkbox":
+      return (
+        <svg className={className} width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M9 12 L11 14 L15 10" />
+        </svg>
+      );
+    default:
+      return <Square className={className} />;
+  }
+}
 
 type LineStyle = "solid" | "dashed" | "dotted";
 
@@ -804,7 +863,6 @@ function WhiteboardToolbar({
       {showShapes && (
         <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-3 grid grid-cols-4 gap-3 min-w-[200px] z-[60]">
           {shapeOptions.map((shape) => {
-            const Icon = shape.icon;
             return (
               <button
                 key={shape.id}
@@ -815,7 +873,7 @@ function WhiteboardToolbar({
                 )}
                 title={shape.label}
               >
-                <Icon className="w-6 h-6" />
+                <ShapeIcon type={shape.icon} className="w-6 h-6" />
               </button>
             );
           })}
@@ -844,8 +902,9 @@ function WhiteboardToolbar({
               >
                 {(() => {
                   const shape = shapeOptions.find(s => s.id === currentShape);
-                  const Icon = shape?.icon || Square;
-                  return <Icon className="w-5 h-5" />;
+                  const iconType = shape?.icon || "rect";
+                  const iconColorClass = currentTool === tool.id ? "text-white" : "text-gray-700 dark:text-gray-200";
+                  return <ShapeIcon type={iconType} className={cn("w-5 h-5", iconColorClass)} />;
                 })()}
                 <ChevronDown className="w-3 h-3" />
               </button>
