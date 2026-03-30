@@ -2,10 +2,21 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 
-type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "line" | "arrow" | "rect" | "circle" | "triangle" | "diamond" | "text" | "note";
+type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "brushEraser" | "line" | "arrow" | "rect" | "circle" | "triangle" | "diamond" | "text" | "note";
 type LineStyle = "solid" | "dashed" | "dotted";
 
 interface Point { x: number; y: number; }
+
+interface EraserParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  color: string;
+}
 
 interface DrawObject {
   type: string;
@@ -50,7 +61,7 @@ function dSeg(px: number, py: number, x1: number, y1: number, x2: number, y2: nu
 }
 
 function hitTest(o: DrawObject, px: number, py: number, eraserSize = 24) {
-  const T = 8;
+  const T = eraserSize;
   switch (o.type) {
     case 'rect':
     case 'circle':
@@ -70,6 +81,16 @@ function hitTest(o: DrawObject, px: number, py: number, eraserSize = 24) {
     default:
       return false;
   }
+}
+
+function hitTestAll(objects: DrawObject[], px: number, py: number, eraserSize: number): number[] {
+  const hit: number[] = [];
+  objects.forEach((o, idx) => {
+    if (hitTest(o, px, py, eraserSize)) {
+      hit.push(idx);
+    }
+  });
+  return hit;
 }
 
 function bbox(o: DrawObject) {
@@ -124,6 +145,8 @@ export default function TldrawCanvas({
   const [showGrid, setShowGrid] = useState(gridType !== "none");
   const [history, setHistory] = useState<DrawObject[][]>([[]]);
   const [hi, setHi] = useState([0]);
+  const [eraserParticles, setEraserParticles] = useState<EraserParticle[]>([]);
+  const [isErasing, setIsErasing] = useState(false);
 
   const activeTool: Tool = currentTool as Tool;
 
@@ -134,6 +157,43 @@ export default function TldrawCanvas({
   useEffect(() => {
     onObjectsChange?.(objects);
   }, [objects, onObjectsChange]);
+
+  useEffect(() => {
+    if (eraserParticles.length === 0) return;
+    
+    let animationId: number;
+    let lastTime = 0;
+    
+    const animate = (time: number) => {
+      const delta = time - lastTime;
+      lastTime = time;
+      
+      setEraserParticles(prev => {
+        const updated = prev.map(p => ({
+          ...p,
+          x: p.x + p.vx,
+          y: p.y + p.vy,
+          vy: p.vy + 0.3,
+          life: p.life - delta * 0.003,
+        })).filter(p => p.life > 0);
+        
+        if (updated.length > 0) {
+          render();
+        }
+        return updated;
+      });
+      
+      if (eraserParticles.length > 0) {
+        animationId = requestAnimationFrame(animate);
+      }
+    };
+    
+    animationId = requestAnimationFrame(animate);
+    
+    return () => {
+      if (animationId) cancelAnimationFrame(animationId);
+    };
+  }, [eraserParticles.length]);
 
   const cpx = useCallback((e: MouseEvent) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -157,9 +217,19 @@ export default function TldrawCanvas({
     objects.forEach(o => drawO(ctx, o));
     if (curObj) drawO(ctx, curObj);
     if (selIdx >= 0 && selIdx < objects.length) drawSel(ctx, objects[selIdx]);
+    
+    eraserParticles.forEach(p => {
+      ctx.save();
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
 
     ctx.restore();
-  }, [objects, curObj, selIdx, panX, panY, zoom]);
+  }, [objects, curObj, selIdx, panX, panY, zoom, eraserParticles]);
 
   const drawO = (c: CanvasRenderingContext2D, o: DrawObject) => {
     c.save();
@@ -399,9 +469,31 @@ export default function TldrawCanvas({
         return;
       }
 
-      if (activeTool === "eraser") {
-        const r = strokeWidth * 3;
-        setObjects(prev => prev.filter(o => !hitTest(o, p.x, p.y) || Math.hypot(p.x - (o.cx ?? o.x ?? o.x1 ?? 0), p.y - (o.cy ?? o.y ?? o.y1 ?? 0)) >= r * 3));
+      if (activeTool === "eraser" || activeTool === "brushEraser") {
+        const r = activeTool === "brushEraser" ? strokeWidth * 2 : strokeWidth * 3;
+        const erased = hitTestAll(objects, p.x, p.y, r);
+        
+        if (erased.length > 0) {
+          const newParticles: EraserParticle[] = [];
+          erased.forEach((_, idx) => {
+            for (let i = 0; i < 5; i++) {
+              newParticles.push({
+                x: p.x + (Math.random() - 0.5) * r * 2,
+                y: p.y + (Math.random() - 0.5) * r * 2,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                life: 1,
+                maxLife: 1,
+                size: Math.random() * 4 + 2,
+                color: objects[idx]?.c || '#fff',
+              });
+            }
+          });
+          setEraserParticles(prev => [...prev, ...newParticles]);
+          setIsErasing(true);
+        }
+        
+        setObjects(prev => prev.filter((o, idx) => !erased.includes(idx)));
         render();
         return;
       }
@@ -431,8 +523,9 @@ export default function TldrawCanvas({
         return;
       }
 
-      if (activeTool === "eraser") {
+      if (activeTool === "eraser" || activeTool === "brushEraser") {
         pushHist();
+        setIsErasing(false);
         render();
         return;
       }
@@ -532,7 +625,7 @@ export default function TldrawCanvas({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [activeTool, drawing, panning, sx, sy, lx, ly, curObj, selIdx, objects, spaceDown, strokeWidth, currentColor, fillEnabled, fillColor, lineStyle, cpx, render]);
+  }, [activeTool, drawing, panning, sx, sy, lx, ly, curObj, selIdx, objects, spaceDown, strokeWidth, currentColor, fillEnabled, fillColor, lineStyle, cpx, render, eraserParticles]);
 
   useEffect(() => {
     render();
@@ -545,7 +638,8 @@ export default function TldrawCanvas({
     switch (activeTool) {
       case "select": return "default";
       case "hand": return panning ? "grabbing" : "grab";
-      case "eraser": return "cell";
+      case "eraser":
+      case "brushEraser": return "crosshair";
       case "text": return "text";
       default: return "crosshair";
     }

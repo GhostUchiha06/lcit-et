@@ -54,6 +54,7 @@ import {
   CheckSquare,
   Triangle,
   Minus,
+  Paintbrush,
 } from "lucide-react";
 
 function ViewModeButton({
@@ -698,13 +699,14 @@ function ImageViewer({ file, onClose }: { file: DriveFile; onClose: () => void }
   );
 }
 
-type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "line" | "arrow" | "rect" | "circle" | "triangle" | "diamond" | "text" | "note";
+type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "brushEraser" | "line" | "arrow" | "rect" | "circle" | "triangle" | "diamond" | "text" | "note";
 
 const tools = [
   { id: "select" as Tool, icon: MousePointer2, label: "Select" },
   { id: "pencil" as Tool, icon: Pencil, label: "Pencil" },
   { id: "pen" as Tool, icon: PenTool, label: "Pen" },
   { id: "eraser" as Tool, icon: Eraser, label: "Eraser" },
+  { id: "brushEraser" as Tool, icon: Paintbrush, label: "Brush Eraser" },
   { id: "rect" as Tool, icon: Square, label: "Rectangle" },
   { id: "circle" as Tool, icon: Circle, label: "Ellipse" },
   { id: "triangle" as Tool, icon: Triangle, label: "Triangle" },
@@ -1169,9 +1171,20 @@ export default function SmartBoard() {
     setIsLoadingFiles(true);
     try {
       const data = await fetch("/api/drive?action=structure").then(r => r.json());
-      if (data.success !== false) setFolderStructure(data.structure || []);
-    } catch {
-      toast.error("Failed to load files");
+      console.log("Drive API response:", data);
+      if (data.success !== false) {
+        setFolderStructure(data.structure || []);
+        if (data.structure && data.structure.length > 0) {
+          setExpandedFolders(new Set(data.structure.map((f: FolderStructure) => f.id)));
+        }
+      } else {
+        console.log("Drive API error:", data.error);
+        setFolderStructure([]);
+      }
+    } catch (err) {
+      console.error("Failed to load files:", err);
+      toast.error("Failed to load files. Check if Google Drive is configured.");
+      setFolderStructure([]);
     } finally {
       setIsLoadingFiles(false);
     }
