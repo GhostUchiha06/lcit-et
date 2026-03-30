@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Tldraw } from "@tldraw/tldraw";
-import "@tldraw/tldraw/tldraw.css";
+import TldrawCanvas from "./TldrawCanvas";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ViewMode, NoteSlide, DriveFile, FolderStructure } from "@/lib/types";
@@ -502,8 +501,9 @@ function WhiteboardPanel({ onOpenSettings, bgColor, gridType, strokeWidth, erase
   const [savePassword, setSavePassword] = useState('');
   const [showSavePasswordPrompt, setShowSavePasswordPrompt] = useState(false);
   const editorRef = useRef<any>(null);
+  const tldrawRef = useRef<any>(null);
 
-  const handleMount = useCallback((editor: any) => {
+  const handleEditorReady = useCallback((editor: any) => {
     editorRef.current = editor;
   }, []);
 
@@ -641,9 +641,7 @@ function WhiteboardPanel({ onOpenSettings, bgColor, gridType, strokeWidth, erase
           <button onClick={handleSaveToDrive} disabled={isExporting} className="flex items-center gap-2 px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors text-sm">{isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Save</button>
         </div>
       </div>
-      <div className="flex-1 overflow-hidden" style={{ backgroundColor: bgColor, backgroundImage: gridType === "dots" ? `radial-gradient(circle, ${bgColor === "#1e1e1e" || bgColor === "#1a1a2e" ? "#444" : "#ccc"} 1px, transparent 1px)` : gridType === "lines" ? `linear-gradient(${bgColor === "#1e1e1e" || bgColor === "#1a1a2e" ? "#333" : "#ddd"} 1px, transparent 1px), linear-gradient(90deg, ${bgColor === "#1e1e1e" || bgColor === "#1a1a2e" ? "#333" : "#ddd"} 1px, transparent 1px)` : "none", backgroundSize: gridType === "dots" ? "20px 20px" : gridType === "lines" ? "20px 20px" : "auto" }}>
-        <Tldraw onMount={handleMount} autoFocus components={{ DebugMenu: null }} />
-      </div>
+      <TldrawCanvas ref={tldrawRef} bgColor={bgColor} gridType={gridType} onEditorReady={handleEditorReady} />
     </div>
     );
     
