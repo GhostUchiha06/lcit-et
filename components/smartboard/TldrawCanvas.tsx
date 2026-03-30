@@ -1383,6 +1383,7 @@ export default function TldrawCanvas({
             : `linear-gradient(${lineColor} 1px, transparent 1px), linear-gradient(90deg, ${lineColor} 1px, transparent 1px)`
           : "none",
         backgroundSize: showGrid ? `${gridSpacing}px ${gridSpacing}px` : "auto",
+        backgroundPosition: showGrid ? `${panX}px ${panY}px` : "auto",
         cursor: getCursor(),
       }}
     >
