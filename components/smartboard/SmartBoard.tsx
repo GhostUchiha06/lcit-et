@@ -698,14 +698,17 @@ function ImageViewer({ file, onClose }: { file: DriveFile; onClose: () => void }
   );
 }
 
-type Tool = "select" | "draw" | "highlight" | "eraser" | "geo" | "arrow" | "line" | "text" | "note";
+type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "line" | "arrow" | "rect" | "circle" | "triangle" | "diamond" | "text" | "note";
 
 const tools = [
   { id: "select" as Tool, icon: MousePointer2, label: "Select" },
-  { id: "draw" as Tool, icon: Pencil, label: "Pen" },
-  { id: "highlight" as Tool, icon: Highlighter, label: "Highlighter" },
+  { id: "pencil" as Tool, icon: Pencil, label: "Pencil" },
+  { id: "pen" as Tool, icon: PenTool, label: "Pen" },
   { id: "eraser" as Tool, icon: Eraser, label: "Eraser" },
-  { id: "geo" as Tool, icon: Square, label: "Shapes" },
+  { id: "rect" as Tool, icon: Square, label: "Rectangle" },
+  { id: "circle" as Tool, icon: Circle, label: "Ellipse" },
+  { id: "triangle" as Tool, icon: Triangle, label: "Triangle" },
+  { id: "diamond" as Tool, icon: Hexagon, label: "Diamond" },
   { id: "line" as Tool, icon: Minus, label: "Line" },
   { id: "arrow" as Tool, icon: ArrowRight, label: "Arrow" },
   { id: "text" as Tool, icon: Type, label: "Text" },
@@ -723,6 +726,8 @@ const shapeOptions = [
   { id: "checkbox", label: "Checkbox", icon: CheckSquare },
 ];
 
+type LineStyle = "solid" | "dashed" | "dotted";
+
 function WhiteboardToolbar({
   currentTool,
   onToolChange,
@@ -730,6 +735,8 @@ function WhiteboardToolbar({
   onColorChange,
   strokeWidth,
   onStrokeWidthChange,
+  lineStyle,
+  onLineStyleChange,
   onUndo,
   onRedo,
   onClear,
@@ -752,6 +759,8 @@ function WhiteboardToolbar({
   onColorChange: (color: string) => void;
   strokeWidth: number;
   onStrokeWidthChange: (width: number) => void;
+  lineStyle: LineStyle;
+  onLineStyleChange: (style: LineStyle) => void;
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
@@ -794,49 +803,16 @@ function WhiteboardToolbar({
 
         {tools.map((tool) => (
           <div key={tool.id} className="relative">
-            {tool.id === "geo" ? (
-              <>
-                <button
-                  onClick={() => { onToolChange(tool.id); setShowShapes(!showShapes); setShowExportMenu(false); }}
-                  className={cn(
-                    "p-2.5 rounded-xl transition-all relative",
-                    currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
-                  )}
-                  title={tool.label}
-                >
-                  <tool.icon className="w-5 h-5" />
-                </button>
-                {showShapes && currentTool === "geo" && (
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 grid grid-cols-4 gap-1">
-                    {shapeOptions.map((shape) => (
-                      <button
-                        key={shape.id}
-                        onClick={() => { onShapeChange(shape.id); setShowShapes(false); }}
-                        className={cn(
-                          "p-2 rounded-lg transition-all flex flex-col items-center gap-1",
-                          currentShape === shape.id ? "bg-blue-500 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800"
-                        )}
-                        title={shape.label}
-                      >
-                        <shape.icon className="w-5 h-5" />
-                        <span className="text-[10px]">{shape.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <button
-                onClick={() => { onToolChange(tool.id); setShowShapes(false); setShowExportMenu(false); }}
-                className={cn(
-                  "p-2.5 rounded-xl transition-all",
-                  currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
-                )}
-                title={tool.label}
-              >
-                <tool.icon className="w-5 h-5" />
-              </button>
-            )}
+            <button
+              onClick={() => { onToolChange(tool.id); setShowShapes(false); setShowExportMenu(false); }}
+              className={cn(
+                "p-2.5 rounded-xl transition-all",
+                currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+              )}
+              title={tool.label}
+            >
+              <tool.icon className="w-5 h-5" />
+            </button>
           </div>
         ))}
 
@@ -879,6 +855,48 @@ function WhiteboardToolbar({
             className="w-20 accent-blue-500"
           />
           <span className="text-xs text-gray-500 w-5">{strokeWidth}</span>
+        </div>
+
+        <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
+
+        <div className="flex items-center gap-1 px-1">
+          <button
+            onClick={() => onLineStyleChange("solid")}
+            className={cn(
+              "p-2 rounded-lg transition-all",
+              lineStyle === "solid" ? "bg-blue-500 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+            )}
+            title="Solid Line"
+          >
+            <Minus className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onLineStyleChange("dashed")}
+            className={cn(
+              "p-2 rounded-lg transition-all",
+              lineStyle === "dashed" ? "bg-blue-500 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+            )}
+            title="Dashed Line"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 16 16">
+              <line x1="2" y1="8" x2="6" y2="8" stroke="currentColor" strokeWidth="2" />
+              <line x1="10" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          </button>
+          <button
+            onClick={() => onLineStyleChange("dotted")}
+            className={cn(
+              "p-2 rounded-lg transition-all",
+              lineStyle === "dotted" ? "bg-blue-500 text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+            )}
+            title="Dotted Line"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 16 16">
+              <circle cx="3" cy="8" r="2" fill="currentColor" />
+              <circle cx="8" cy="8" r="2" fill="currentColor" />
+              <circle cx="13" cy="8" r="2" fill="currentColor" />
+            </svg>
+          </button>
         </div>
 
         <div className="w-px h-10 bg-gray-200 dark:bg-gray-700 mx-1" />
@@ -979,126 +997,67 @@ function WhiteboardPanel({
   template: WhiteboardTemplate | null;
   onTemplateApplied: () => void;
 }) {
-  const [currentTool, setCurrentTool] = useState<Tool>("draw");
+  const [currentTool, setCurrentTool] = useState<Tool>("pencil");
   const [currentShape, setCurrentShape] = useState("rectangle");
+  const [lineStyle, setLineStyle] = useState<LineStyle>("solid");
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [pages, setPages] = useState([{ id: "1", name: "Page 1" }]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [customShapes, setCustomShapes] = useState<any[]>([]);
-  const editorRef = useRef<any>(null);
+  const [drawnObjects, setDrawnObjects] = useState<any[]>([]);
 
-  const handleEditorReady = useCallback((editor: any) => {
-    editorRef.current = editor;
-    editor.store.listen(() => {
-      const history = editor.getHistory();
-      setCanUndo(history.canUndo());
-      setCanRedo(history.canRedo());
-    });
-    
-    if (template) {
-      applyTemplate(editor, template);
-    }
-  }, [template]);
+  const handleEditorReady = useCallback(() => {
+  }, []);
 
   const applyTemplate = (editor: any, tmpl: WhiteboardTemplate) => {
-    editor.clearPages();
-    editor.addPage({ name: tmpl.name });
-    
-    onBgColorChange(tmpl.theme.bgColor);
-    onGridTypeChange(tmpl.theme.gridType);
-    
-    tmpl.sections.forEach((section, index) => {
-      section.elements.forEach((el) => {
-        if (el.type === "sticky_note") {
-          editor.createShape({
-            type: "note",
-            x: section.position.x + (index * 10),
-            y: section.position.y + (index * 10),
-            props: {
-              color: el.color || "#fef08a",
-              text: el.content || "",
-            },
-          });
-        } else if (el.type === "shape") {
-          const geoMap: Record<string, string> = {
-            rectangle: "rectangle",
-            ellipse: "ellipse",
-            diamond: "diamond",
-            triangle: "triangle",
-            hexagon: "hexagon",
-            star: "star",
-            chat: "arrow",
-            checkbox: "rectangle",
-          };
-          editor.createShape({
-            type: "geo",
-            x: section.position.x,
-            y: section.position.y,
-            props: {
-              geo: geoMap[el.shapeType || "rectangle"] || "rectangle",
-              w: section.size.width,
-              h: section.size.height,
-              fill: tmpl.theme.accentColor,
-            },
-          });
-        } else if (el.type === "text") {
-          editor.createShape({
-            type: "text",
-            x: section.position.x,
-            y: section.position.y,
-            props: {
-              text: el.content || "",
-              fontSize: el.fontSize || 16,
-              color: el.style?.color || tmpl.theme.accentColor,
-            },
-          });
-        }
-      });
-    });
-    
-    onTemplateApplied();
-    toast.success(`Applied "${tmpl.name}" template`);
+    if (template) {
+      onBgColorChange(tmpl.theme.bgColor);
+      onGridTypeChange(tmpl.theme.gridType);
+      toast.success(`Applied "${tmpl.name}" template`);
+      onTemplateApplied();
+    }
   };
 
-  const handleUndo = () => editorRef.current?.undo();
-  const handleRedo = () => editorRef.current?.redo();
+  const handleUndo = () => {
+    setCanUndo(drawnObjects.length > 0);
+  };
+  const handleRedo = () => {
+    setCanRedo(false);
+  };
   const handleClear = () => {
-    if (editorRef.current) {
-      const shapes = editorRef.current.getCurrentPageShapeIds();
-      if (shapes.size > 0) editorRef.current.deleteShapes([...shapes]);
-    }
-    setCustomShapes([]);
+    setDrawnObjects([]);
   };
 
   const handleExport = async (format: "png" | "svg" | "json") => {
-    if (!editorRef.current) return;
     try {
-      const editor = editorRef.current;
-      const shapeIds = [...editor.getCurrentPageShapeIds()];
+      const canvas = document.querySelector("canvas");
+      if (!canvas) return;
       
       if (format === "png") {
-        const { blob } = await editor.toImage(shapeIds, { format: 'png', background: true });
-        const url = URL.createObjectURL(blob);
+        const url = canvas.toDataURL("image/png");
         const a = document.createElement("a");
         a.href = url;
         a.download = `whiteboard-page-${currentPage}.png`;
         a.click();
-        URL.revokeObjectURL(url);
       } else if (format === "svg") {
-        const svg = await editor.toSvg(shapeIds);
-        const blob = new Blob([svg], { type: "image/svg+xml" });
+        const exportData = {
+          objects: drawnObjects,
+          bgColor,
+          gridType,
+        };
+        const jsonString = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `whiteboard-page-${currentPage}.svg`;
+        a.download = `whiteboard-page-${currentPage}.json`;
         a.click();
         URL.revokeObjectURL(url);
       } else if (format === "json") {
-        const snapshot = editor.store.getSnapshot();
         const exportData = {
-          ...snapshot,
-          customShapes: customShapes,
+          objects: drawnObjects,
+          bgColor,
+          gridType,
         };
         const jsonString = JSON.stringify(exportData, null, 2);
         const blob = new Blob([jsonString], { type: "application/json" });
@@ -1121,67 +1080,21 @@ function WhiteboardPanel({
     const newPage = { id: Date.now().toString(), name: `Page ${pages.length + 1}` };
     setPages([...pages, newPage]);
     setCurrentPage(pages.length + 1);
-    
-    if (editorRef.current) {
-      editorRef.current.addPage({ name: newPage.name });
-    }
   };
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
-      if (editorRef.current) {
-        const pageIds = editorRef.current.getPageIds();
-        if (pageIds[currentPage - 2]) {
-          editorRef.current.setCurrentPage(pageIds[currentPage - 2]);
-        }
-      }
     }
   };
 
   const handleNextPage = () => {
     if (currentPage < pages.length) {
       setCurrentPage(currentPage + 1);
-      if (editorRef.current) {
-        const pageIds = editorRef.current.getPageIds();
-        if (pageIds[currentPage]) {
-          editorRef.current.setCurrentPage(pageIds[currentPage]);
-        }
-      }
     }
   };
 
   useEffect(() => {
-    if (!editorRef.current) return;
-    
-    const toolMap: Record<string, string> = {
-      select: "select",
-      draw: "draw",
-      highlight: "highlight",
-      eraser: "eraser",
-      geo: "geo",
-      arrow: "arrow",
-      line: "line",
-      text: "text",
-      note: "note",
-    };
-    
-    const tldrawTool = toolMap[currentTool] || "select";
-    
-    try {
-      if (editorRef.current.getCurrentToolId() !== tldrawTool) {
-        editorRef.current.setCurrentTool(tldrawTool);
-      }
-      
-      if (currentTool === "geo" && editorRef.current.getCurrentTool()) {
-        const tool = editorRef.current.getCurrentTool();
-        if (tool && typeof tool.setGeo === "function") {
-          tool.setGeo(currentShape);
-        }
-      }
-    } catch (e) {
-      console.error("Tool change error:", e);
-    }
   }, [currentTool, currentShape]);
 
   return (
@@ -1189,13 +1102,15 @@ function WhiteboardPanel({
       <TldrawCanvas
         bgColor={bgColor}
         gridType={gridType}
-        onEditorReady={handleEditorReady}
         currentTool={currentTool}
         currentColor={currentColor}
         strokeWidth={strokeWidth}
         currentShape={currentShape}
-        shapes={customShapes}
-        onShapesChange={setCustomShapes}
+        lineStyle={lineStyle}
+        onObjectsChange={(objs) => {
+          setDrawnObjects(objs);
+          setCanUndo(objs.length > 0);
+        }}
       />
       <WhiteboardToolbar
         currentTool={currentTool}
@@ -1204,6 +1119,8 @@ function WhiteboardPanel({
         onColorChange={onColorChange}
         strokeWidth={strokeWidth}
         onStrokeWidthChange={onStrokeWidthChange}
+        lineStyle={lineStyle}
+        onLineStyleChange={setLineStyle}
         onUndo={handleUndo}
         onRedo={handleRedo}
         onClear={handleClear}

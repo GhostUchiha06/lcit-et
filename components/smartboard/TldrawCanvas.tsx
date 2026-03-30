@@ -1,500 +1,578 @@
 "use client";
 
-import { useRef, useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useRef, useState, useEffect, useCallback } from "react";
 
-interface Shape {
-  id: string;
-  type: "rectangle" | "ellipse" | "diamond" | "triangle" | "hexagon" | "star" | "line" | "arrow" | "text" | "note";
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  color: string;
-  fillColor?: string;
-  strokeWidth: number;
+type Tool = "select" | "hand" | "pencil" | "pen" | "eraser" | "line" | "arrow" | "rect" | "circle" | "triangle" | "diamond" | "text" | "note";
+type LineStyle = "solid" | "dashed" | "dotted";
+
+interface Point { x: number; y: number; }
+
+interface DrawObject {
+  type: string;
+  c: string;
+  fc: string;
+  w: number;
+  op: number;
+  x?: number; y?: number;
+  w2?: number; h?: number;
+  x1?: number; y1?: number; x2?: number; y2?: number;
+  x3?: number; y3?: number;
+  cx?: number; cy?: number; rx?: number; ry?: number;
+  pts?: Point[];
+  smooth?: boolean;
   text?: string;
-  rotation?: number;
+  fs?: number;
+  lineStyle?: LineStyle;
 }
 
 interface TldrawCanvasProps {
   bgColor: string;
   gridType: "dots" | "lines" | "none";
-  onEditorReady?: (editor: any) => void;
-  currentTool?: string;
+  currentTool?: Tool;
   currentColor?: string;
   strokeWidth?: number;
   currentShape?: string;
-  shapes?: Shape[];
-  onShapesChange?: (shapes: Shape[]) => void;
+  fillColor?: string;
+  fillEnabled?: boolean;
+  lineStyle?: LineStyle;
+  onObjectsChange?: (objects: DrawObject[]) => void;
+  onExportReady?: (exportFn: (format: string) => void) => void;
+}
+
+const STROKE_COLORS = ['#000000', '#1e293b', '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#6366f1', '#a855f7', '#ec4899', '#ffffff', '#94a3b8'];
+const FILL_COLORS = ['#fef2f2', '#fff7ed', '#fefce8', '#f0fdf4', '#ecfeff', '#eef2ff', '#fdf4ff', '#fff1f2', 'transparent'];
+const NOTE_COLORS = ['#fef08a', '#bbf7d0', '#bae6fd', '#fecaca', '#e9d5ff', '#fed7aa'];
+
+function dSeg(px: number, py: number, x1: number, y1: number, x2: number, y2: number) {
+  const dx = x2 - x1, dy = y2 - y1, len2 = dx * dx + dy * dy;
+  const t = len2 ? Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / len2)) : 0;
+  return Math.hypot(px - x1 - t * dx, py - y1 - t * dy);
+}
+
+function hitTest(o: DrawObject, px: number, py: number, eraserSize = 24) {
+  const T = 8;
+  switch (o.type) {
+    case 'rect':
+    case 'circle':
+      return px >= (o.x || 0) - T && px <= (o.x || 0) + (o.w2 || 0) + T && py >= (o.y || 0) - T && py <= (o.y || 0) + (o.h || 0) + T;
+    case 'line':
+    case 'arrow':
+      return dSeg(px, py, o.x1 || 0, o.y1 || 0, o.x2 || 0, o.y2 || 0) < T;
+    case 'triangle':
+      return px >= Math.min(o.x1 || 0, o.x2 || 0, o.x3 || 0) - T && px <= Math.max(o.x1 || 0, o.x2 || 0, o.x3 || 0) + T &&
+             py >= Math.min(o.y1 || 0, o.y2 || 0, o.y3 || 0) - T && py <= Math.max(o.y1 || 0, o.y2 || 0, o.y3 || 0) + T;
+    case 'diamond':
+      return (Math.abs(px - (o.cx || 0)) / (o.rx || 1)) + (Math.abs(py - (o.cy || 0)) / (o.ry || 1)) <= 1 + T / Math.max(o.rx || 1, o.ry || 1);
+    case 'path':
+      return (o.pts || []).some((p, i) => i > 0 && dSeg(px, py, o.pts![i - 1].x, o.pts![i - 1].y, p.x, p.y) < T);
+    case 'text':
+      return px >= (o.x || 0) - T && px <= (o.x || 0) + 200 && py >= (o.y || 0) - (o.fs || 18) - T && py <= (o.y || 0) + T;
+    default:
+      return false;
+  }
+}
+
+function bbox(o: DrawObject) {
+  switch (o.type) {
+    case 'rect':
+    case 'circle':
+      return { x: o.x || 0, y: o.y || 0, w: o.w2 || 0, h: o.h || 0 };
+    case 'line':
+    case 'arrow':
+      return { x: Math.min(o.x1 || 0, o.x2 || 0), y: Math.min(o.y1 || 0, o.y2 || 0), w: Math.abs((o.x2 || 0) - (o.x1 || 0)), h: Math.abs((o.y2 || 0) - (o.y1 || 0)) };
+    case 'triangle':
+      return { x: Math.min(o.x1 || 0, o.x2 || 0, o.x3 || 0), y: Math.min(o.y1 || 0, o.y2 || 0, o.y3 || 0), w: Math.max(o.x1 || 0, o.x2 || 0, o.x3 || 0) - Math.min(o.x1 || 0, o.x2 || 0, o.x3 || 0), h: Math.max(o.y1 || 0, o.y2 || 0, o.y3 || 0) - Math.min(o.y1 || 0, o.y2 || 0, o.y3 || 0) };
+    case 'diamond':
+      return { x: (o.cx || 0) - (o.rx || 0), y: (o.cy || 0) - (o.ry || 0), w: (o.rx || 0) * 2, h: (o.ry || 0) * 2 };
+    case 'path':
+      if (!o.pts?.length) return null;
+      return { x: Math.min(...o.pts.map(p => p.x)), y: Math.min(...o.pts.map(p => p.y)), w: Math.max(...o.pts.map(p => p.x)) - Math.min(...o.pts.map(p => p.x)), h: Math.max(...o.pts.map(p => p.y)) - Math.min(...o.pts.map(p => p.y)) };
+    case 'text':
+      return { x: o.x || 0, y: o.y || 0, w: 200, h: (o.fs || 18) * 2 };
+    default:
+      return null;
+  }
 }
 
 export default function TldrawCanvas({
   bgColor,
   gridType,
-  onEditorReady,
-  currentTool = "draw",
-  currentColor = "#000000",
-  strokeWidth = 4,
+  currentTool = "pencil",
+  currentColor = "#1e293b",
+  strokeWidth = 2,
   currentShape = "rectangle",
-  shapes = [],
-  onShapesChange,
+  fillColor = "transparent",
+  fillEnabled = false,
+  lineStyle = "solid",
+  onObjectsChange,
 }: TldrawCanvasProps) {
-  const editorRef = useRef<any>(null);
-  const [TldrawComponent, setTldrawComponent] = useState<any>(null);
-  const isMountedRef = useRef(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const shapesLayerRef = useRef<HTMLDivElement>(null);
-  const [localShapes, setLocalShapes] = useState<Shape[]>(shapes);
-  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
-  const dragStartRef = useRef({ x: 0, y: 0, shapeX: 0, shapeY: 0 });
-  const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0, shapeX: 0, shapeY: 0 });
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawStart, setDrawStart] = useState({ x: 0, y: 0 });
+  const [objects, setObjects] = useState<DrawObject[]>([]);
+  const [curObj, setCurObj] = useState<DrawObject | null>(null);
+  const [selIdx, setSelIdx] = useState(-1);
+  const [drawing, setDrawing] = useState(false);
+  const [panning, setPanning] = useState(false);
+  const [spaceDown, setSpaceDown] = useState(false);
+  const [zoom, setZoomState] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const [sx, setSx] = useState(0);
+  const [sy, setSy] = useState(0);
+  const [lx, setLx] = useState(0);
+  const [ly, setLy] = useState(0);
+  const [showGrid, setShowGrid] = useState(gridType !== "none");
+  const [history, setHistory] = useState<DrawObject[][]>([[]]);
+  const [hi, setHi] = useState([0]);
+
+  const activeTool: Tool = currentTool as Tool;
 
   useEffect(() => {
-    if (isMountedRef.current) return;
-    isMountedRef.current = true;
-    
-    import("@tldraw/tldraw").then((mod) => {
-      setTldrawComponent(() => mod.Tldraw);
-    });
-    
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "https://unpkg.com/@tldraw/tldraw/tldraw.css";
-    document.head.appendChild(link);
-    
-    return () => {
-      document.head.removeChild(link);
+    setShowGrid(gridType !== "none");
+  }, [gridType]);
+
+  useEffect(() => {
+    onObjectsChange?.(objects);
+  }, [objects, onObjectsChange]);
+
+  const cpx = useCallback((e: MouseEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return {
+      x: (e.clientX - rect.left - panX) / zoom,
+      y: (e.clientY - rect.top - panY) / zoom,
     };
-  }, []);
+  }, [panX, panY, zoom]);
 
-  useEffect(() => {
-    setLocalShapes(shapes);
-  }, [shapes]);
+  const render = useCallback(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
 
-  useEffect(() => {
-    if (onShapesChange) {
-      onShapesChange(localShapes);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(panX, panY);
+    ctx.scale(zoom, zoom);
+
+    objects.forEach(o => drawO(ctx, o));
+    if (curObj) drawO(ctx, curObj);
+    if (selIdx >= 0 && selIdx < objects.length) drawSel(ctx, objects[selIdx]);
+
+    ctx.restore();
+  }, [objects, curObj, selIdx, panX, panY, zoom]);
+
+  const drawO = (c: CanvasRenderingContext2D, o: DrawObject) => {
+    c.save();
+    c.globalAlpha = o.op ?? 1;
+    c.strokeStyle = o.c ?? "#000";
+    c.fillStyle = o.fc ?? "transparent";
+    c.lineWidth = o.w ?? 2;
+    c.lineCap = "round";
+    c.lineJoin = "round";
+
+    if (o.lineStyle === "dashed") {
+      c.setLineDash([10, 8]);
+    } else if (o.lineStyle === "dotted") {
+      c.setLineDash([3, 5]);
+    } else {
+      c.setLineDash([]);
     }
-  }, [localShapes, onShapesChange]);
 
-  const handleMount = useCallback((editor: any) => {
-    editorRef.current = editor;
-    editor.user.updateUserPreferences({ color: currentColor });
-    onEditorReady?.(editor);
-  }, [onEditorReady, currentColor]);
-
-  useEffect(() => {
-    if (!editorRef.current) return;
-    
-    const toolMap: Record<string, string> = {
-      select: "select",
-      draw: "draw",
-      highlight: "highlight",
-      eraser: "eraser",
-      geo: "geo",
-      arrow: "arrow",
-      line: "line",
-      text: "text",
-      note: "note",
-    };
-    
-    const tldrawTool = toolMap[currentTool] || "select";
-    
-    try {
-      const editor = editorRef.current;
-      if (editor.getCurrentToolId() !== tldrawTool) {
-        editor.setCurrentTool(tldrawTool);
-      }
-    } catch (e) {
-      console.error("Tool change error:", e);
-    }
-  }, [currentTool]);
-
-  useEffect(() => {
-    if (editorRef.current) {
-      editorRef.current.user.updateUserPreferences({ color: currentColor });
-    }
-  }, [currentColor]);
-
-  const getShapeStyles = (shape: Shape) => {
-    const baseStyle = {
-      left: shape.x,
-      top: shape.y,
-      width: shape.width,
-      height: shape.height,
-      borderColor: shape.color,
-      borderWidth: shape.strokeWidth,
-      backgroundColor: shape.fillColor || "transparent",
-      transform: shape.rotation ? `rotate(${shape.rotation}deg)` : undefined,
-    };
-
-    switch (shape.type) {
-      case "rectangle":
-        return { ...baseStyle, borderRadius: "4px" };
-      case "ellipse":
-        return { ...baseStyle, borderRadius: "50%" };
-      case "diamond":
-        return { ...baseStyle, transform: `rotate(45deg) ${shape.rotation ? `rotate(${shape.rotation}deg)` : ''}`, width: shape.width * 0.707, height: shape.height * 0.707, left: shape.x + shape.width * 0.146, top: shape.y + shape.height * 0.146 };
-      case "triangle":
-        return { ...baseStyle, backgroundColor: "transparent", border: "none", clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)" };
-      case "hexagon":
-        return { ...baseStyle, clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" };
-      case "star":
-        return { ...baseStyle, backgroundColor: "transparent", border: "none", clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)" };
-      case "note":
-        return { ...baseStyle, backgroundColor: "#fef08a", borderRadius: "2px", boxShadow: "2px 2px 5px rgba(0,0,0,0.1)" };
+    switch (o.type) {
+      case "path":
+        if (!o.pts || o.pts.length < 2) break;
+        c.beginPath();
+        if (o.smooth && o.pts.length > 2) {
+          c.moveTo(o.pts[0].x, o.pts[0].y);
+          for (let i = 1; i < o.pts.length - 1; i++) {
+            const mx = (o.pts[i].x + o.pts[i + 1].x) / 2;
+            const my = (o.pts[i].y + o.pts[i + 1].y) / 2;
+            c.quadraticCurveTo(o.pts[i].x, o.pts[i].y, mx, my);
+          }
+          c.lineTo(o.pts[o.pts.length - 1].x, o.pts[o.pts.length - 1].y);
+        } else {
+          c.moveTo(o.pts[0].x, o.pts[0].y);
+          o.pts.forEach(p => c.lineTo(p.x, p.y));
+        }
+        c.stroke();
+        break;
       case "line":
-        return { ...baseStyle, height: shape.strokeWidth, backgroundColor: shape.color, borderRadius: shape.strokeWidth / 2 };
-      case "arrow":
-        return { ...baseStyle, height: shape.strokeWidth, backgroundColor: shape.color };
-      default:
-        return baseStyle;
-    }
-  };
-
-  const handleCanvasClick = (e: React.MouseEvent) => {
-    if (currentTool === "geo" || currentTool === "line" || currentTool === "arrow" || currentTool === "note") {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      setDrawStart({ x, y });
-      setIsDrawing(true);
-    } else if (currentTool === "select") {
-      setSelectedShapeId(null);
-    }
-  };
-
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    if (currentTool !== "geo" && currentTool !== "line" && currentTool !== "arrow" && currentTool !== "note") return;
-    
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    setDrawStart({ x, y });
-    setIsDrawing(true);
-    e.stopPropagation();
-  };
-
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && selectedShapeId) {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      const dx = x - dragStartRef.current.x;
-      const dy = y - dragStartRef.current.y;
-      
-      setLocalShapes((prev) =>
-        prev.map((s) =>
-          s.id === selectedShapeId
-            ? { ...s, x: dragStartRef.current.shapeX + dx, y: dragStartRef.current.shapeY + dy }
-            : s
-        )
-      );
-    } else if (isResizing && selectedShapeId && resizeHandle) {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      const dx = x - resizeStartRef.current.x;
-      const dy = y - resizeStartRef.current.y;
-      
-      let newWidth = resizeStartRef.current.width;
-      let newHeight = resizeStartRef.current.height;
-      let newX = resizeStartRef.current.shapeX;
-      let newY = resizeStartRef.current.shapeY;
-      
-      if (resizeHandle.includes("e")) newWidth = Math.max(20, resizeStartRef.current.width + dx);
-      if (resizeHandle.includes("w")) { newWidth = Math.max(20, resizeStartRef.current.width - dx); newX = resizeStartRef.current.shapeX + dx; }
-      if (resizeHandle.includes("s")) newHeight = Math.max(20, resizeStartRef.current.height + dy);
-      if (resizeHandle.includes("n")) { newHeight = Math.max(20, resizeStartRef.current.height - dy); newY = resizeStartRef.current.shapeY + dy; }
-      
-      setLocalShapes((prev) =>
-        prev.map((s) =>
-          s.id === selectedShapeId
-            ? { ...s, x: newX, y: newY, width: newWidth, height: newHeight }
-            : s
-        )
-      );
-    } else if (isDrawing) {
-      // Preview drawing - handled by render
-    }
-  };
-
-  const handleCanvasMouseUp = (e: React.MouseEvent) => {
-    if (isDragging) {
-      setIsDragging(false);
-      return;
-    }
-    if (isResizing) {
-      setIsResizing(false);
-      setResizeHandle(null);
-      return;
-    }
-    if (isDrawing) {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      const newX = Math.min(drawStart.x, x);
-      const newY = Math.min(drawStart.y, y);
-      const width = Math.max(40, Math.abs(x - drawStart.x));
-      const height = Math.max(40, Math.abs(y - drawStart.y));
-      
-      if (width > 10 && height > 10) {
-        const newShape: Shape = {
-          id: `shape-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          type: currentTool === "geo" ? currentShape as Shape["type"] :
-                currentTool === "line" ? "line" :
-                currentTool === "arrow" ? "arrow" :
-                currentTool === "note" ? "note" : "rectangle",
-          x: newX,
-          y: newY,
-          width,
-          height,
-          color: currentColor,
-          strokeWidth,
-          fillColor: currentTool === "note" ? "#fef08a" : undefined,
-        };
-        
-        setLocalShapes((prev) => [...prev, newShape]);
+        c.beginPath();
+        c.moveTo(o.x1 || 0, o.y1 || 0);
+        c.lineTo(o.x2 || 0, o.y2 || 0);
+        c.stroke();
+        break;
+      case "arrow": {
+        c.beginPath();
+        c.moveTo(o.x1 || 0, o.y1 || 0);
+        c.lineTo(o.x2 || 0, o.y2 || 0);
+        c.stroke();
+        const ang = Math.atan2((o.y2 || 0) - (o.y1 || 0), (o.x2 || 0) - (o.x1 || 0));
+        const hs = Math.max(12, (o.w || 2) * 4);
+        c.beginPath();
+        c.moveTo(o.x2 || 0, o.y2 || 0);
+        c.lineTo(o.x2! - hs * Math.cos(ang - Math.PI / 6), o.y2! - hs * Math.sin(ang - Math.PI / 6));
+        c.lineTo(o.x2! - hs * Math.cos(ang + Math.PI / 6), o.y2! - hs * Math.sin(ang + Math.PI / 6));
+        c.closePath();
+        c.fillStyle = o.c;
+        c.fill();
+        break;
       }
-      
-      setIsDrawing(false);
+      case "rect":
+        if (o.fc !== "transparent") c.fillRect(o.x || 0, o.y || 0, o.w2 || 0, o.h || 0);
+        c.strokeRect(o.x || 0, o.y || 0, o.w2 || 0, o.h || 0);
+        break;
+      case "circle":
+        c.beginPath();
+        c.ellipse((o.x || 0) + (o.w2 || 0) / 2, (o.y || 0) + (o.h || 0) / 2, Math.abs((o.w2 || 0) / 2) || 1, Math.abs((o.h || 0) / 2) || 1, 0, 0, Math.PI * 2);
+        if (o.fc !== "transparent") c.fill();
+        c.stroke();
+        break;
+      case "triangle":
+        c.beginPath();
+        c.moveTo(o.x1 || 0, o.y1 || 0);
+        c.lineTo(o.x2 || 0, o.y2 || 0);
+        c.lineTo(o.x3 || 0, o.y3 || 0);
+        c.closePath();
+        if (o.fc !== "transparent") c.fill();
+        c.stroke();
+        break;
+      case "diamond":
+        c.beginPath();
+        c.moveTo(o.cx || 0, (o.cy || 0) - (o.ry || 0));
+        c.lineTo((o.cx || 0) + (o.rx || 0), o.cy || 0);
+        c.lineTo(o.cx || 0, (o.cy || 0) + (o.ry || 0));
+        c.lineTo((o.cx || 0) - (o.rx || 0), o.cy || 0);
+        c.closePath();
+        if (o.fc !== "transparent") c.fill();
+        c.stroke();
+        break;
+      case "text":
+        c.font = `${o.fs || 18}px system-ui, sans-serif`;
+        c.fillStyle = o.c || "#000";
+        c.globalAlpha = o.op ?? 1;
+        (o.text || "").split("\n").forEach((ln, i) => c.fillText(ln, o.x || 0, (o.y || 0) + i * ((o.fs || 18) * 1.3)));
+        break;
+    }
+    c.restore();
+  };
+
+  const drawSel = (c: CanvasRenderingContext2D, o: DrawObject) => {
+    const bb = bbox(o);
+    if (!bb) return;
+    c.save();
+    c.strokeStyle = "#6366f1";
+    c.lineWidth = 2 / zoom;
+    c.setLineDash([5 / zoom, 3 / zoom]);
+    c.strokeRect(bb.x - 7 / zoom, bb.y - 7 / zoom, bb.w + 14 / zoom, bb.h + 14 / zoom);
+    c.fillStyle = "rgba(99, 102, 241, 0.07)";
+    c.fillRect(bb.x - 7 / zoom, bb.y - 7 / zoom, bb.w + 14 / zoom, bb.h + 14 / zoom);
+    c.restore();
+  };
+
+  const moveObj = (o: DrawObject, dx: number, dy: number) => {
+    switch (o.type) {
+      case "rect":
+      case "circle":
+        o.x! += dx; o.y! += dy;
+        break;
+      case "line":
+      case "arrow":
+        o.x1! += dx; o.y1! += dy; o.x2! += dx; o.y2! += dy;
+        break;
+      case "triangle":
+        o.x1! += dx; o.y1! += dy; o.x2! += dx; o.y2! += dy; o.x3! += dx; o.y3! += dy;
+        break;
+      case "diamond":
+        o.cx! += dx; o.cy! += dy;
+        break;
+      case "path":
+        o.pts?.forEach(p => { p.x += dx; p.y += dy; });
+        break;
+      case "text":
+        o.x! += dx; o.y! += dy;
+        break;
     }
   };
 
-  const handleShapeMouseDown = (e: React.MouseEvent, shapeId: string) => {
-    e.stopPropagation();
-    if (currentTool !== "select") return;
-    
-    setSelectedShapeId(shapeId);
-    setIsDragging(true);
-    
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const shape = localShapes.find((s) => s.id === shapeId);
-    if (shape) {
-      dragStartRef.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        shapeX: shape.x,
-        shapeY: shape.y,
-      };
+  const mkShape = (tool: string, x1: number, y1: number, x2: number, y2: number): DrawObject => {
+    const base: DrawObject = { type: tool, c: currentColor, fc: fillEnabled ? fillColor : "transparent", w: strokeWidth, op: 1, lineStyle };
+    const x = Math.min(x1, x2);
+    const y = Math.min(y1, y2);
+    const ww = Math.abs(x2 - x1);
+    const hh = Math.abs(y2 - y1);
+    switch (tool) {
+      case "line":
+        return { ...base, type: "line", x1, y1, x2, y2 };
+      case "arrow":
+        return { ...base, type: "arrow", x1, y1, x2, y2 };
+      case "rect":
+        return { ...base, type: "rect", x, y, w2: ww, h: hh };
+      case "circle":
+        return { ...base, type: "circle", x, y, w2: ww, h: hh };
+      case "triangle":
+        return { ...base, type: "triangle", x1: x1 + (x2 - x1) / 2, y1, x2, y2, x3: x1, y3: y2 };
+      case "diamond": {
+        const cx = (x1 + x2) / 2;
+        const cy = (y1 + y2) / 2;
+        return { ...base, type: "diamond", cx, cy, rx: ww / 2, ry: hh / 2 };
+      }
+      default:
+        return { ...base, type: "rect", x, y, w2: ww, h: hh };
     }
   };
 
-  const handleResizeMouseDown = (e: React.MouseEvent, handle: string) => {
-    e.stopPropagation();
-    setIsResizing(true);
-    setResizeHandle(handle);
-    
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect || !selectedShapeId) return;
-    
-    const shape = localShapes.find((s) => s.id === selectedShapeId);
-    if (shape) {
-      resizeStartRef.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        width: shape.width,
-        height: shape.height,
-        shapeX: shape.x,
-        shapeY: shape.y,
-      };
-    }
+  const pushHist = () => {
+    setHistory(prev => {
+      const newHist = [...prev];
+      newHist[newHist.length - 1] = [...objects];
+      return [...newHist, [...objects]];
+    });
   };
-
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if ((e.key === "Delete" || e.key === "Backspace") && selectedShapeId) {
-      setLocalShapes((prev) => prev.filter((s) => s.id !== selectedShapeId));
-      setSelectedShapeId(null);
-    }
-  }, [selectedShapeId]);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+
+    const resize = () => {
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      render();
+    };
+
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(container);
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button === 1 || (e.button === 0 && spaceDown)) {
+        setPanning(true);
+        setLx(e.clientX);
+        setLy(e.clientY);
+        return;
+      }
+      if (e.button !== 0) return;
+
+      const p = cpx(e);
+      if (activeTool === "hand") {
+        setPanning(true);
+        setLx(e.clientX);
+        setLy(e.clientY);
+        return;
+      }
+
+      setDrawing(true);
+      setSx(p.x);
+      setSy(p.y);
+      setLx(p.x);
+      setLy(p.y);
+
+      if (activeTool === "pencil" || activeTool === "pen") {
+        setCurObj({ type: "path", pts: [{ x: p.x, y: p.y }], c: currentColor, fc: "transparent", w: strokeWidth, smooth: activeTool === "pen", op: 1, lineStyle });
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (panning) {
+        setPanX(prev => prev + e.clientX - lx);
+        setPanY(prev => prev + e.clientY - ly);
+        setLx(e.clientX);
+        setLy(e.clientY);
+        return;
+      }
+      if (!drawing) return;
+
+      const p = cpx(e);
+
+      if (activeTool === "select" && selIdx >= 0) {
+        const dx = p.x - sx;
+        const dy = p.y - sy;
+        setObjects(prev => {
+          const newObjs = [...prev];
+          moveObj(newObjs[selIdx], dx, dy);
+          return newObjs;
+        });
+        setSx(p.x);
+        setSy(p.y);
+        render();
+        return;
+      }
+
+      if (activeTool === "eraser") {
+        const r = strokeWidth * 3;
+        setObjects(prev => prev.filter(o => !hitTest(o, p.x, p.y) || Math.hypot(p.x - (o.cx ?? o.x ?? o.x1 ?? 0), p.y - (o.cy ?? o.y ?? o.y1 ?? 0)) >= r * 3));
+        render();
+        return;
+      }
+
+      if (activeTool === "pencil" || activeTool === "pen") {
+        setCurObj(prev => prev ? { ...prev, pts: [...(prev.pts || []), { x: p.x, y: p.y }] } : null);
+        render();
+        return;
+      }
+
+      if (["line", "arrow", "rect", "circle", "triangle", "diamond"].includes(activeTool)) {
+        setCurObj(mkShape(activeTool, sx, sy, p.x, p.y));
+        render();
+      }
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (panning) {
+        setPanning(false);
+        return;
+      }
+      if (!drawing) return;
+      setDrawing(false);
+
+      if (activeTool === "select") {
+        render();
+        return;
+      }
+
+      if (activeTool === "eraser") {
+        pushHist();
+        render();
+        return;
+      }
+
+      if (curObj) {
+        if (curObj.type === "path" && (curObj.pts?.length || 0) < 2) {
+          setCurObj(null);
+          return;
+        }
+        setObjects(prev => [...prev, curObj]);
+        pushHist();
+        setCurObj(null);
+        render();
+      }
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        const f = e.deltaY < 0 ? 1.1 : 0.909;
+        const rect = canvas.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        setPanX(prev => px - (px - prev) * f);
+        setPanY(prev => py - (py - prev) * f);
+        setZoomState(prev => Math.max(0.08, Math.min(8, prev * f)));
+        setTimeout(render, 0);
+      } else {
+        setPanX(prev => prev - e.deltaX);
+        setPanY(prev => prev - e.deltaY);
+        setTimeout(render, 0);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        setSpaceDown(true);
+        return;
+      }
+      if (e.code === "Delete" || e.code === "Backspace") {
+        if (selIdx >= 0) {
+          setObjects(prev => prev.filter((_, i) => i !== selIdx));
+          setSelIdx(-1);
+          pushHist();
+          render();
+        }
+      }
+      if (e.code === "Escape") {
+        setSelIdx(-1);
+        render();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ") {
+        e.preventDefault();
+        setHistory(prev => {
+          if (prev.length <= 1) return prev;
+          const newHist = [...prev];
+          newHist.pop();
+          setObjects(newHist[newHist.length - 1] || []);
+          setTimeout(render, 0);
+          return newHist;
+        });
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") setSpaceDown(false);
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      if (activeTool !== "select") return;
+      const p = cpx(e);
+      setSelIdx(-1);
+      for (let i = objects.length - 1; i >= 0; i--) {
+        if (hitTest(objects[i], p.x, p.y)) {
+          setSelIdx(i);
+          break;
+        }
+      }
+      render();
+    };
+
+    canvas.addEventListener("mousedown", handleMouseDown);
+    canvas.addEventListener("mousemove", handleMouseMove);
+    canvas.addEventListener("mouseup", handleMouseUp);
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    canvas.addEventListener("click", handleClick);
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+    window.addEventListener("keyup", handleKeyUp);
 
-  const renderShape = (shape: Shape) => {
-    const isSelected = selectedShapeId === shape.id;
-    const styles = getShapeStyles(shape);
-    
-    return (
-      <div
-        key={shape.id}
-        className="absolute cursor-move select-none"
-        style={{
-          ...styles,
-          borderStyle: "solid",
-          borderColor: shape.color,
-          borderWidth: shape.strokeWidth,
-          position: "absolute",
-          zIndex: isSelected ? 100 : 10,
-        }}
-        onMouseDown={(e) => handleShapeMouseDown(e, shape.id)}
-      >
-        {shape.type === "triangle" && (
-          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <polygon
-              points="50,5 95,95 5,95"
-              fill={shape.fillColor || "transparent"}
-              stroke={shape.color}
-              strokeWidth={shape.strokeWidth}
-            />
-          </svg>
-        )}
-        {shape.type === "star" && (
-          <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <polygon
-              points="50,5 61,35 95,35 68,57 79,90 50,70 21,90 32,57 5,35 39,35"
-              fill={shape.fillColor || shape.color}
-              stroke={shape.color}
-              strokeWidth={shape.strokeWidth / 2}
-            />
-          </svg>
-        )}
-        {shape.type === "note" && (
-          <div className="w-full h-full p-2 text-sm overflow-hidden" style={{ color: "#333" }}>
-            {shape.text || "Double-click to edit"}
-          </div>
-        )}
-        {shape.type === "arrow" && (
-          <svg width="100%" height="100%" viewBox="0 0 100 20" preserveAspectRatio="none">
-            <defs>
-              <marker id={`arrowhead-${shape.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill={shape.color} />
-              </marker>
-            </defs>
-            <line x1="0" y1="10" x2="90" y2="10" stroke={shape.color} strokeWidth={shape.strokeWidth} markerEnd={`url(#arrowhead-${shape.id})`} />
-          </svg>
-        )}
-        {shape.type === "line" && (
-          <svg width="100%" height="100%" viewBox={`0 0 ${shape.width} ${shape.strokeWidth}`} preserveAspectRatio="none">
-            <line x1="0" y1={shape.strokeWidth / 2} x2={shape.width} y2={shape.strokeWidth / 2} stroke={shape.color} strokeWidth={shape.strokeWidth} strokeLinecap="round" />
-          </svg>
-        )}
-        
-        {isSelected && (
-          <>
-            <div className="absolute -top-1 -left-1 w-3 h-3 bg-white border-2 border-blue-500 cursor-nw-resize" onMouseDown={(e) => handleResizeMouseDown(e, "nw")} />
-            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-blue-500 cursor-n-resize" onMouseDown={(e) => handleResizeMouseDown(e, "n")} />
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-white border-2 border-blue-500 cursor-ne-resize" onMouseDown={(e) => handleResizeMouseDown(e, "ne")} />
-            <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-3 h-3 bg-white border-2 border-blue-500 cursor-w-resize" onMouseDown={(e) => handleResizeMouseDown(e, "w")} />
-            <div className="absolute top-1/2 -translate-y-1/2 -right-1 w-3 h-3 bg-white border-2 border-blue-500 cursor-e-resize" onMouseDown={(e) => handleResizeMouseDown(e, "e")} />
-            <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-white border-2 border-blue-500 cursor-sw-resize" onMouseDown={(e) => handleResizeMouseDown(e, "sw")} />
-            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-blue-500 cursor-s-resize" onMouseDown={(e) => handleResizeMouseDown(e, "s")} />
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white border-2 border-blue-500 cursor-se-resize" onMouseDown={(e) => handleResizeMouseDown(e, "se")} />
-          </>
-        )}
-      </div>
-    );
-  };
+    return () => {
+      observer.disconnect();
+      canvas.removeEventListener("mousedown", handleMouseDown);
+      canvas.removeEventListener("mousemove", handleMouseMove);
+      canvas.removeEventListener("mouseup", handleMouseUp);
+      canvas.removeEventListener("wheel", handleWheel);
+      canvas.removeEventListener("click", handleClick);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [activeTool, drawing, panning, sx, sy, lx, ly, curObj, selIdx, objects, spaceDown, strokeWidth, currentColor, fillEnabled, fillColor, lineStyle, cpx, render]);
 
-  const renderDrawingPreview = () => {
-    if (!isDrawing) return null;
-    
-    const containerRect = containerRef.current?.getBoundingClientRect();
-    if (!containerRect) return null;
-    
-    const previewX = Math.min(drawStart.x, drawStart.x);
-    const previewY = Math.min(drawStart.y, drawStart.y);
-    
-    return (
-      <div
-        className="absolute border-2 border-dashed border-blue-500 bg-blue-500/10 pointer-events-none"
-        style={{
-          left: previewX,
-          top: previewY,
-          zIndex: 1000,
-        }}
-      />
-    );
-  };
+  useEffect(() => {
+    render();
+  }, [render]);
 
   const gridColor = bgColor === "#1e1e1e" || bgColor === "#1a1a2e" ? "#666" : "#ddd";
   const lineColor = bgColor === "#1e1e1e" || bgColor === "#1a1a2e" ? "#444" : "#eee";
 
-  if (!TldrawComponent) {
-    return (
-      <div 
-        className="w-full h-full flex items-center justify-center"
-        style={{ backgroundColor: bgColor }}
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-500">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const getCursor = () => {
+    switch (activeTool) {
+      case "select": return "default";
+      case "hand": return panning ? "grabbing" : "grab";
+      case "eraser": return "cell";
+      case "text": return "text";
+      default: return "crosshair";
+    }
+  };
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className="w-full h-full relative overflow-hidden"
-      style={{ cursor: currentTool === "geo" || currentTool === "line" || currentTool === "arrow" || currentTool === "note" ? "crosshair" : currentTool === "select" ? "default" : "crosshair" }}
-      onClick={handleCanvasClick}
-      onMouseDown={handleCanvasMouseDown}
-      onMouseMove={handleCanvasMouseMove}
-      onMouseUp={handleCanvasMouseUp}
+      style={{
+        backgroundColor: bgColor,
+        backgroundImage: showGrid
+          ? gridType === "dots"
+            ? `radial-gradient(circle, ${gridColor} 1.5px, transparent 1.5px)`
+            : `linear-gradient(${lineColor} 1px, transparent 1px), linear-gradient(90deg, ${lineColor} 1px, transparent 1px)`
+          : "none",
+        backgroundSize: showGrid ? (gridType === "dots" ? "24px 24px" : "24px 24px") : "auto",
+        cursor: getCursor(),
+      }}
     >
-      <div 
-        className="absolute inset-0 w-full h-full pointer-events-none"
-        style={{ 
-          backgroundColor: bgColor, 
-          backgroundImage: gridType === "dots" 
-            ? `radial-gradient(circle, ${gridColor} 1.5px, transparent 1.5px)` 
-            : gridType === "lines" 
-              ? `linear-gradient(${lineColor} 1px, transparent 1px), linear-gradient(90deg, ${lineColor} 1px, transparent 1px)` 
-              : "none", 
-          backgroundSize: gridType === "dots" ? "24px 24px" : gridType === "lines" ? "24px 24px" : "auto",
-          zIndex: 0,
-        }}
-      />
-      <div className="absolute inset-0 w-full h-full" style={{ zIndex: 1, pointerEvents: currentTool === "select" ? "auto" : "none" }}>
-        <TldrawComponent 
-          onMount={handleMount} 
-          autoFocus 
-          hideUi
-          components={{ 
-            DebugMenu: () => null,
-            DebugPanel: () => null,
-            SharePanel: () => null,
-            TopPanel: () => null,
-            HelperButtons: () => null,
-            TldrawToolbar: () => null,
-          }} 
-        />
-      </div>
-      <div 
-        ref={shapesLayerRef}
+      <canvas
+        ref={canvasRef}
         className="absolute inset-0 w-full h-full"
-        style={{ zIndex: 2, pointerEvents: "none" }}
-      >
-        {localShapes.map(renderShape)}
-        {renderDrawingPreview()}
-      </div>
+      />
     </div>
   );
 }
+
+export { hitTest, bbox, dSeg };
+export type { DrawObject, Tool, LineStyle, Point };
