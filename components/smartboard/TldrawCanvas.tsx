@@ -44,14 +44,8 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
     const handleMount = useCallback((editor: any) => {
       editorRef.current = editor;
       editor.user.updateUserPreferences({ color: currentColor });
-      
-      editor.user.updateUserPreferences({ 
-        color: currentColor,
-        size: strokeWidth >= 15 ? "l" : strokeWidth >= 8 ? "m" : "s"
-      });
-      
       onEditorReady?.(editor);
-    }, [onEditorReady, currentColor, strokeWidth]);
+    }, [onEditorReady, currentColor]);
 
     useEffect(() => {
       if (!editorRef.current) return;
@@ -93,13 +87,6 @@ const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
         editorRef.current.user.updateUserPreferences({ color: currentColor });
       }
     }, [currentColor]);
-
-    useEffect(() => {
-      if (editorRef.current) {
-        const size = strokeWidth >= 15 ? "l" : strokeWidth >= 8 ? "m" : "s";
-        editorRef.current.user.updateUserPreferences({ size });
-      }
-    }, [strokeWidth]);
 
     const gridColor = bgColor === "#1e1e1e" || bgColor === "#1a1a2e" ? "#666" : "#ddd";
     const lineColor = bgColor === "#1e1e1e" || bgColor === "#1a1a2e" ? "#444" : "#eee";
