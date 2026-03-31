@@ -63,8 +63,6 @@ interface TldrawCanvasProps {
   showLayers?: boolean;
   eraserOpacity?: number;
   eraserHardness?: number;
-  onUndo?: () => void;
-  onRedo?: () => void;
 }
 
 function genId() {
@@ -702,14 +700,7 @@ export default function TldrawCanvas({
   showLayers = true,
   eraserOpacity = 0.5,
   eraserHardness = 0.8,
-  onUndo,
-  onRedo,
 }: TldrawCanvasProps) {
-  const [layersHistory, setLayersHistory] = useState<Layer[][]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
-  const lastObjectsCountRef = useRef(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [layers, setLayers] = useState<Layer[]>([
@@ -737,6 +728,11 @@ export default function TldrawCanvas({
   const [layerPanelCollapsed, setLayerPanelCollapsed] = useState(false);
   const [layerPanelWidth, setLayerPanelWidth] = useState(288);
   const [eraserCursorPos, setEraserCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const [layersHistory, setLayersHistory] = useState<Layer[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const lastObjectsCountRef = useRef(0);
 
   const currentLayer = layers.find(l => l.id === currentLayerId);
   const activeObjects = currentLayer?.objects || [];
@@ -760,7 +756,6 @@ export default function TldrawCanvas({
 
   useEffect(() => {
     const totalObjects = layers.flatMap(l => l.objects).length;
-    
     if (totalObjects !== lastObjectsCountRef.current) {
       if (totalObjects > lastObjectsCountRef.current) {
         const newHistory = [...layersHistory.slice(0, historyIndex + 1), JSON.parse(JSON.stringify(layers))];
@@ -771,9 +766,28 @@ export default function TldrawCanvas({
       }
       lastObjectsCountRef.current = totalObjects;
     }
-    
     onObjectsChange?.(layers.flatMap(l => l.objects));
   }, [layers, onObjectsChange]);
+
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setLayers(JSON.parse(JSON.stringify(layersHistory[newIndex])));
+      setHistoryIndex(newIndex);
+      setCanUndo(newIndex > 0);
+      setCanRedo(true);
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyIndex < layersHistory.length - 1) {
+      const newIndex = historyIndex + 1;
+      setLayers(JSON.parse(JSON.stringify(layersHistory[newIndex])));
+      setHistoryIndex(newIndex);
+      setCanUndo(true);
+      setCanRedo(newIndex < layersHistory.length - 1);
+    }
+  };
 
   useEffect(() => {
     if (eraserParticles.length === 0) return;
@@ -1205,28 +1219,6 @@ export default function TldrawCanvas({
     render();
   };
 
-  const handleUndo = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setLayers(JSON.parse(JSON.stringify(layersHistory[newIndex])));
-      setHistoryIndex(newIndex);
-      setCanUndo(newIndex > 0);
-      setCanRedo(true);
-      onUndo?.();
-    }
-  };
-
-  const handleRedo = () => {
-    if (historyIndex < layersHistory.length - 1) {
-      const newIndex = historyIndex + 1;
-      setLayers(JSON.parse(JSON.stringify(layersHistory[newIndex])));
-      setHistoryIndex(newIndex);
-      setCanUndo(true);
-      setCanRedo(newIndex < layersHistory.length - 1);
-      onRedo?.();
-    }
-  };
-
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -1280,7 +1272,7 @@ export default function TldrawCanvas({
       if (activeTool === "eraser" || activeTool === "brushEraser") {
         setEraserCursorPos({ x: e.clientX, y: e.clientY });
       }
-      
+
       if (panning) {
         setPanX(prev => prev + e.clientX - lx);
         setPanY(prev => prev + e.clientY - ly);
@@ -1649,7 +1641,6 @@ export default function TldrawCanvas({
             height: getEraserSize(),
             left: eraserCursorPos.x - getEraserSize() / 2,
             top: eraserCursorPos.y - getEraserSize() / 2,
-            transform: "translate(0, 0)",
             zIndex: 9999,
           }}
         />

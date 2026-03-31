@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import SmartBoardCanvas from "./SmartBoardCanvas";
+import TldrawCanvas from "./TldrawCanvas";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ViewMode, NoteSlide, DriveFile, FolderStructure } from "@/lib/types";
@@ -823,12 +823,6 @@ function WhiteboardToolbar({
   pageCount,
   gridType,
   onGridTypeChange,
-  eraserOpacity,
-  onEraserOpacityChange,
-  eraserHardness,
-  onEraserHardnessChange,
-  showLayersPanel,
-  onToggleLayersPanel,
 }: {
   currentTool: Tool;
   onToolChange: (tool: Tool) => void;
@@ -853,19 +847,10 @@ function WhiteboardToolbar({
   pageCount: number;
   gridType: "dots" | "lines" | "none";
   onGridTypeChange: (type: "dots" | "lines" | "none") => void;
-  eraserOpacity?: number;
-  onEraserOpacityChange?: (opacity: number) => void;
-  eraserHardness?: number;
-  onEraserHardnessChange?: (hardness: number) => void;
-  showLayersPanel?: boolean;
-  onToggleLayersPanel?: () => void;
 }) {
   const [showColors, setShowColors] = useState(false);
   const [showShapes, setShowShapes] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [showEraserSettings, setShowEraserSettings] = useState(false);
-  const showBrushEraser = currentTool === "brushEraser";
-  const showPenPencilLayers = currentTool === "pencil" || currentTool === "pen";
 
   const toggleGrid = () => {
     if (gridType === "none") {
@@ -910,7 +895,7 @@ function WhiteboardToolbar({
           <div key={tool.id} className="relative flex-shrink-0">
             {tool.id === "geo" ? (
               <button
-                onClick={() => { onToolChange(tool.id); setShowShapes(!showShapes); setShowExportMenu(false); setShowEraserSettings(false); }}
+                onClick={() => { onToolChange(tool.id); setShowShapes(!showShapes); setShowExportMenu(false); }}
                 className={cn(
                   "p-2.5 rounded-xl transition-all flex items-center gap-1",
                   currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
@@ -925,81 +910,9 @@ function WhiteboardToolbar({
                 })()}
                 <ChevronDown className="w-3 h-3" />
               </button>
-            ) : tool.id === "brushEraser" ? (
-              <div className="relative">
-                <button
-                  onClick={() => { onToolChange(tool.id); setShowShapes(false); setShowExportMenu(false); setShowEraserSettings(!showEraserSettings); }}
-                  className={cn(
-                    "p-2.5 rounded-xl transition-all",
-                    currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
-                  )}
-                  title={tool.label}
-                >
-                  <tool.icon className="w-5 h-5" />
-                </button>
-                {showEraserSettings && showBrushEraser && (
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-3 z-50 min-w-[200px]">
-                    <div className="mb-3">
-                      <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-300">Opacity (Particles)</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.1"
-                          value={eraserOpacity || 0.5}
-                          onChange={(e) => onEraserOpacityChange?.(parseFloat(e.target.value))}
-                          className="flex-1 accent-blue-500"
-                        />
-                        <span className="text-xs w-8">{Math.round((eraserOpacity || 0.5) * 100)}%</span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-300">Hardness (Spread)</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.1"
-                          value={eraserHardness || 0.8}
-                          onChange={(e) => onEraserHardnessChange?.(parseFloat(e.target.value))}
-                          className="flex-1 accent-blue-500"
-                        />
-                        <span className="text-xs w-8">{Math.round((eraserHardness || 0.8) * 100)}%</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : tool.id === "pencil" || tool.id === "pen" ? (
-              <div className="relative flex items-center gap-1">
-                <button
-                  onClick={() => { onToolChange(tool.id); setShowShapes(false); setShowExportMenu(false); setShowEraserSettings(false); }}
-                  className={cn(
-                    "p-2.5 rounded-xl transition-all",
-                    currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
-                  )}
-                  title={tool.label}
-                >
-                  <tool.icon className="w-5 h-5" />
-                </button>
-                {showPenPencilLayers && (
-                  <button
-                    onClick={() => onToggleLayersPanel?.()}
-                    className={cn(
-                      "p-2.5 rounded-xl transition-all",
-                      showLayersPanel ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
-                    )}
-                    title="Toggle Layers"
-                  >
-                    <Layers className="w-5 h-5" />
-                  </button>
-                )}
-              </div>
             ) : (
               <button
-                onClick={() => { onToolChange(tool.id); setShowShapes(false); setShowExportMenu(false); setShowEraserSettings(false); }}
+                onClick={() => { onToolChange(tool.id); setShowShapes(false); setShowExportMenu(false); }}
                 className={cn(
                   "p-2.5 rounded-xl transition-all",
                   currentTool === tool.id ? "bg-blue-500 text-white shadow-md" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
@@ -1200,8 +1113,6 @@ function WhiteboardPanel({
   const [currentPage, setCurrentPage] = useState(1);
   const [drawnObjects, setDrawnObjects] = useState<any[]>([]);
   const [showLayers, setShowLayers] = useState(true);
-  const [eraserOpacity, setEraserOpacity] = useState(0.5);
-  const [eraserHardness, setEraserHardness] = useState(0.8);
   const [showCalculator, setShowCalculator] = useState(false);
   const [calcPosition, setCalcPosition] = useState({ x: 100, y: 100 });
   const [calcSize, setCalcSize] = useState({ width: 600, height: 450 });
@@ -1210,6 +1121,8 @@ function WhiteboardPanel({
   const [resizeEdge, setResizeEdge] = useState<string>('');
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [calcType, setCalcType] = useState<'graphing' | 'scientific'>('graphing');
+  const [history, setHistory] = useState<any[][]>([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
   const calcRef = useRef<HTMLDivElement>(null);
   const calcKeyRef = useRef(0);
 
@@ -1217,12 +1130,31 @@ function WhiteboardPanel({
   }, []);
 
   const handleUndo = () => {
-    setCanRedo(true);
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setDrawnObjects(history[newIndex]);
+      setCanRedo(true);
+      if (newIndex === 0) {
+        setCanUndo(false);
+      }
+    }
   };
   const handleRedo = () => {
-    setCanUndo(true);
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setDrawnObjects(history[newIndex]);
+      setCanUndo(true);
+      if (newIndex === history.length - 1) {
+        setCanRedo(false);
+      }
+    }
   };
   const handleClear = () => {
+    const newHistory = [...history.slice(0, historyIndex + 1), []];
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
     setDrawnObjects([]);
     setCanUndo(true);
     setCanRedo(false);
@@ -1296,27 +1228,6 @@ function WhiteboardPanel({
 
   useEffect(() => {
   }, [currentTool, currentShape]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
-      
-      if (e.key === "e" || e.key === "E") {
-        setCurrentTool("eraser");
-      } else if (e.key === "p" || e.key === "P") {
-        setCurrentTool("pencil");
-      } else if (e.key === "b" || e.key === "B") {
-        setCurrentTool("brushEraser");
-      } else if (e.key === "s" || e.key === "S") {
-        setCurrentTool("select");
-      } else if (e.key === "l" || e.key === "L") {
-        setShowLayers(!showLayers);
-      }
-    };
-    
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showLayers]);
 
   useEffect(() => {
     if (!showCalculator) return;
@@ -1415,11 +1326,25 @@ function WhiteboardPanel({
 
   return (
     <div className="relative w-full h-full overflow-hidden">
-      <SmartBoardCanvas
+      <TldrawCanvas
         bgColor={bgColor}
-        onBgColorChange={onBgColorChange}
         gridType={gridType}
-        onGridTypeChange={onGridTypeChange}
+        currentTool={currentTool}
+        currentColor={currentColor}
+        strokeWidth={strokeWidth}
+        currentShape={currentShape}
+        lineStyle={lineStyle}
+        onObjectsChange={(objs) => {
+          setDrawnObjects(objs);
+          if (objs.length !== drawnObjects.length) {
+            const newHistory = [...history.slice(0, historyIndex + 1), [...objs]];
+            setHistory(newHistory);
+            setHistoryIndex(newHistory.length - 1);
+            setCanUndo(true);
+            setCanRedo(false);
+          }
+        }}
+        showLayers={showLayers}
       />
       <div className="absolute top-4 right-4 z-30 flex gap-2">
         <button
@@ -1433,6 +1358,18 @@ function WhiteboardPanel({
           title={showCalculator ? "Hide Calculator" : "Show Calculator"}
         >
           <Calculator className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => setShowLayers(!showLayers)}
+          className={cn(
+            "p-3 rounded-xl shadow-lg border transition-all",
+            showLayers 
+              ? "bg-blue-500 text-white border-blue-600" 
+              : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+          )}
+          title={showLayers ? "Hide Layers Panel" : "Show Layers Panel"}
+        >
+          <Layers className="w-5 h-5" />
         </button>
       </div>
       {showCalculator && (
@@ -1507,6 +1444,31 @@ function WhiteboardPanel({
           </>
         </div>
       )}
+      <WhiteboardToolbar
+        currentTool={currentTool}
+        onToolChange={setCurrentTool}
+        currentColor={currentColor}
+        onColorChange={onColorChange}
+        strokeWidth={strokeWidth}
+        onStrokeWidthChange={onStrokeWidthChange}
+        lineStyle={lineStyle}
+        onLineStyleChange={setLineStyle}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onClear={handleClear}
+        onExport={handleExport}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        currentShape={currentShape}
+        onShapeChange={setCurrentShape}
+        onAddPage={handleAddPage}
+        onPrevPage={handlePrevPage}
+        onNextPage={handleNextPage}
+        currentPage={currentPage}
+        pageCount={pages.length}
+        gridType={gridType}
+        onGridTypeChange={onGridTypeChange}
+      />
     </div>
   );
 }
@@ -1546,11 +1508,6 @@ export default function SmartBoard() {
         }
       } else {
         console.log("Drive API error:", data.error);
-        if (data.error) {
-          toast.error(data.error);
-        } else {
-          toast.error("Failed to load files. Check if Google Drive is configured.");
-        }
         setFolderStructure([]);
       }
     } catch (err) {
