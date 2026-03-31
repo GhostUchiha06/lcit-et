@@ -3,7 +3,8 @@ import Link from "next/link";
 export default function Home() {
   return (
     <>
-      <style>{`
+      <style suppressHydrationWarning>{`
+
         *, *::before, *::after {
           margin: 0;
           padding: 0;

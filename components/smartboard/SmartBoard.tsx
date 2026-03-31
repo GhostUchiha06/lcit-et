@@ -56,6 +56,7 @@ import {
   Minus,
   Paintbrush,
   Layers,
+  Calculator,
 } from "lucide-react";
 
 function ViewModeButton({
@@ -1115,6 +1116,16 @@ function WhiteboardPanel({
   const [currentPage, setCurrentPage] = useState(1);
   const [drawnObjects, setDrawnObjects] = useState<any[]>([]);
   const [showLayers, setShowLayers] = useState(true);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calcPosition, setCalcPosition] = useState({ x: 100, y: 100 });
+  const [calcSize, setCalcSize] = useState({ width: 600, height: 450 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeEdge, setResizeEdge] = useState<string>('');
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [calcType, setCalcType] = useState<'graphing' | 'scientific'>('graphing');
+  const calcRef = useRef<HTMLDivElement>(null);
+  const calcKeyRef = useRef(0);
 
   const handleEditorReady = useCallback(() => {
   }, []);
@@ -1207,6 +1218,101 @@ function WhiteboardPanel({
   useEffect(() => {
   }, [currentTool, currentShape]);
 
+  useEffect(() => {
+    if (!showCalculator) return;
+
+    const initDesmos = () => {
+      if (typeof window !== 'undefined' && !(window as any).Desmos) {
+        const script = document.createElement('script');
+        script.src = `https://www.desmos.com/api/v1.11/calculator.js?apiKey=${process.env.NEXT_PUBLIC_DESMOS_API_KEY || 'dc6d1a9c-9dd4-4a3f-b8d2-8a6e9f8c4c6c'}`;
+        script.async = true;
+        script.onload = () => createCalculator();
+        document.head.appendChild(script);
+      } else {
+        createCalculator();
+      }
+    };
+
+    const createCalculator = () => {
+      const elt = document.getElementById('desmos-calculator');
+      if (elt) {
+        try {
+          if (calcType === 'graphing') {
+            (elt as any).calculator = (window as any).Desmos.GraphingCalculator(elt, {
+              backgroundColor: 'transparent',
+              textColor: '#374151',
+              gridColor: '#e5e7eb',
+              axisColor: '#9ca3af',
+            });
+          } else {
+            (elt as any).calculator = (window as any).Desmos.ScientificCalculator(elt, {
+              backgroundColor: 'transparent',
+              textColor: '#374151',
+            });
+          }
+        } catch (error) {
+          console.error('Desmos init error:', error);
+        }
+      }
+    };
+
+    calcKeyRef.current += 1;
+    const timer = setTimeout(initDesmos, 100);
+    return () => clearTimeout(timer);
+  }, [showCalculator, calcType]);
+
+  useEffect(() => {
+    if (!isDragging && !isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        setCalcPosition({
+          x: e.clientX - dragOffset.x,
+          y: e.clientY - dragOffset.y,
+        });
+      } else if (isResizing) {
+        let newX = calcPosition.x;
+        let newY = calcPosition.y;
+        let newWidth = calcSize.width;
+        let newHeight = calcSize.height;
+
+        if (resizeEdge.includes('e')) {
+          newWidth = Math.max(400, e.clientX - calcPosition.x);
+        }
+        if (resizeEdge.includes('s')) {
+          newHeight = Math.max(300, e.clientY - calcPosition.y);
+        }
+        if (resizeEdge.includes('w')) {
+          const deltaX = calcPosition.x - e.clientX;
+          newWidth = Math.max(400, calcSize.width + deltaX);
+          newX = Math.min(e.clientX, calcPosition.x + calcSize.width - 400);
+        }
+        if (resizeEdge.includes('n')) {
+          const deltaY = calcPosition.y - e.clientY;
+          newHeight = Math.max(300, calcSize.height + deltaY);
+          newY = Math.min(e.clientY, calcPosition.y + calcSize.height - 300);
+        }
+
+        setCalcPosition({ x: newX, y: newY });
+        setCalcSize({ width: newWidth, height: newHeight });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setIsResizing(false);
+      setResizeEdge('');
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, isResizing, resizeEdge, dragOffset, calcPosition, calcSize]);
+
   return (
     <div className="relative w-full h-full overflow-hidden">
       <TldrawCanvas
@@ -1223,18 +1329,104 @@ function WhiteboardPanel({
         }}
         showLayers={showLayers}
       />
-      <button
-        onClick={() => setShowLayers(!showLayers)}
-        className={cn(
-          "absolute top-4 right-4 z-30 p-3 rounded-xl shadow-lg border transition-all",
-          showLayers 
-            ? "bg-blue-500 text-white border-blue-600" 
-            : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
-        )}
-        title={showLayers ? "Hide Layers Panel" : "Show Layers Panel"}
-      >
-        <Layers className="w-5 h-5" />
-      </button>
+      <div className="absolute top-4 right-4 z-30 flex gap-2">
+        <button
+          onClick={() => setShowCalculator(!showCalculator)}
+          className={cn(
+            "p-3 rounded-xl shadow-lg border transition-all",
+            showCalculator 
+              ? "bg-blue-500 text-white border-blue-600" 
+              : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+          )}
+          title={showCalculator ? "Hide Calculator" : "Show Calculator"}
+        >
+          <Calculator className="w-5 h-5" />
+        </button>
+        <button
+          onClick={() => setShowLayers(!showLayers)}
+          className={cn(
+            "p-3 rounded-xl shadow-lg border transition-all",
+            showLayers 
+              ? "bg-blue-500 text-white border-blue-600" 
+              : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+          )}
+          title={showLayers ? "Hide Layers Panel" : "Show Layers Panel"}
+        >
+          <Layers className="w-5 h-5" />
+        </button>
+      </div>
+      {showCalculator && (
+        <div
+          ref={calcRef}
+          className="absolute z-[60] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden select-none"
+          style={{
+            left: calcPosition.x,
+            top: calcPosition.y,
+            width: calcSize.width,
+            height: calcSize.height,
+            cursor: isDragging ? 'grabbing' : 'default',
+          }}
+        >
+          <div
+            className="flex items-center justify-between p-3 border-b bg-gray-50 dark:bg-gray-800 cursor-grab active:cursor-grabbing"
+            onMouseDown={(e) => {
+              if ((e.target as HTMLElement).closest('.resize-handle') || (e.target as HTMLElement).closest('.calc-toggle')) return;
+              setIsDragging(true);
+              setDragOffset({
+                x: e.clientX - calcPosition.x,
+                y: e.clientY - calcPosition.y,
+              });
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm">
+                {calcType === 'graphing' ? 'Graphing' : 'Scientific'} Calculator
+              </span>
+              <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-0.5 calc-toggle">
+                <button
+                  onClick={() => setCalcType('graphing')}
+                  className={cn(
+                    "px-2 py-1 text-xs rounded-md transition-colors",
+                    calcType === 'graphing'
+                      ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                      : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                  )}
+                >
+                  Graph
+                </button>
+                <button
+                  onClick={() => setCalcType('scientific')}
+                  className={cn(
+                    "px-2 py-1 text-xs rounded-md transition-colors",
+                    calcType === 'scientific'
+                      ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                      : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                  )}
+                >
+                  Scientific
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowCalculator(false)}
+              className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div key={`calc-${calcType}-${calcKeyRef.current}`} id="desmos-calculator" className="w-full" style={{ height: 'calc(100% - 48px)' }} />
+          <>
+            <div className="resize-handle absolute top-0 left-0 w-3 h-3 cursor-nw-resize hover:bg-blue-500/50" onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); setResizeEdge('nw'); setIsResizing(true); }} />
+            <div className="resize-handle absolute top-0 right-0 w-3 h-3 cursor-ne-resize hover:bg-blue-500/50" onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); setResizeEdge('ne'); setIsResizing(true); }} />
+            <div className="resize-handle absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize hover:bg-blue-500/50" onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); setResizeEdge('sw'); setIsResizing(true); }} />
+            <div className="resize-handle absolute bottom-0 right-0 w-3 h-3 cursor-se-resize hover:bg-blue-500/50" onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); setResizeEdge('se'); setIsResizing(true); }} />
+            <div className="resize-handle absolute top-0 left-3 right-3 h-1.5 cursor-n-resize hover:bg-blue-500/50" onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); setResizeEdge('n'); setIsResizing(true); }} />
+            <div className="resize-handle absolute bottom-0 left-3 right-3 h-1.5 cursor-s-resize hover:bg-blue-500/50" onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); setResizeEdge('s'); setIsResizing(true); }} />
+            <div className="resize-handle absolute top-3 bottom-3 left-0 w-1.5 cursor-w-resize hover:bg-blue-500/50" onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); setResizeEdge('w'); setIsResizing(true); }} />
+            <div className="resize-handle absolute top-3 bottom-3 right-0 w-1.5 cursor-e-resize hover:bg-blue-500/50" onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); setResizeEdge('e'); setIsResizing(true); }} />
+          </>
+        </div>
+      )}
       <WhiteboardToolbar
         currentTool={currentTool}
         onToolChange={setCurrentTool}
