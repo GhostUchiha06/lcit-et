@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import TldrawCanvas from "./TldrawCanvas";
+import SmartBoardCanvas from "./SmartBoardCanvas";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ViewMode, NoteSlide, DriveFile, FolderStructure } from "@/lib/types";
@@ -1415,22 +1415,11 @@ function WhiteboardPanel({
 
   return (
     <div className="relative w-full h-full overflow-hidden">
-      <TldrawCanvas
+      <SmartBoardCanvas
         bgColor={bgColor}
+        onBgColorChange={onBgColorChange}
         gridType={gridType}
-        currentTool={currentTool}
-        currentColor={currentColor}
-        strokeWidth={strokeWidth}
-        currentShape={currentShape}
-        lineStyle={lineStyle}
-        onObjectsChange={(objs) => {
-          setDrawnObjects(objs);
-        }}
-        showLayers={showLayers}
-        eraserOpacity={eraserOpacity}
-        eraserHardness={eraserHardness}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
+        onGridTypeChange={onGridTypeChange}
       />
       <div className="absolute top-4 right-4 z-30 flex gap-2">
         <button
