@@ -57,6 +57,7 @@ import {
   Paintbrush,
   Layers,
   Calculator,
+  ArrowLeftRight,
 } from "lucide-react";
 
 function ViewModeButton({
@@ -1093,8 +1094,6 @@ function WhiteboardPanel({
   onStrokeWidthChange,
   onBgColorChange,
   onGridTypeChange,
-  template,
-  onTemplateApplied,
 }: {
   bgColor: string;
   gridType: "dots" | "lines" | "none";
@@ -1104,8 +1103,6 @@ function WhiteboardPanel({
   onStrokeWidthChange: (width: number) => void;
   onBgColorChange: (color: string) => void;
   onGridTypeChange: (type: "dots" | "lines" | "none") => void;
-  template: WhiteboardTemplate | null;
-  onTemplateApplied: () => void;
 }) {
   const [currentTool, setCurrentTool] = useState<Tool>("pencil");
   const [currentShape, setCurrentShape] = useState("rectangle");
@@ -1124,29 +1121,43 @@ function WhiteboardPanel({
   const [resizeEdge, setResizeEdge] = useState<string>('');
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [calcType, setCalcType] = useState<'graphing' | 'scientific'>('graphing');
+  const [history, setHistory] = useState<any[][]>([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
   const calcRef = useRef<HTMLDivElement>(null);
   const calcKeyRef = useRef(0);
 
   const handleEditorReady = useCallback(() => {
   }, []);
 
-  const applyTemplate = (editor: any, tmpl: WhiteboardTemplate) => {
-    if (template) {
-      onBgColorChange(tmpl.theme.bgColor);
-      onGridTypeChange(tmpl.theme.gridType);
-      toast.success(`Applied "${tmpl.name}" template`);
-      onTemplateApplied();
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setDrawnObjects(history[newIndex]);
+      setCanRedo(true);
+      if (newIndex === 0) {
+        setCanUndo(false);
+      }
     }
   };
-
-  const handleUndo = () => {
-    setCanUndo(drawnObjects.length > 0);
-  };
   const handleRedo = () => {
-    setCanRedo(false);
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setDrawnObjects(history[newIndex]);
+      setCanUndo(true);
+      if (newIndex === history.length - 1) {
+        setCanRedo(false);
+      }
+    }
   };
   const handleClear = () => {
+    const newHistory = [...history.slice(0, historyIndex + 1), []];
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
     setDrawnObjects([]);
+    setCanUndo(true);
+    setCanRedo(false);
   };
 
   const handleExport = async (format: "png" | "svg" | "json") => {
@@ -1325,7 +1336,13 @@ function WhiteboardPanel({
         lineStyle={lineStyle}
         onObjectsChange={(objs) => {
           setDrawnObjects(objs);
-          setCanUndo(objs.length > 0);
+          if (objs.length !== drawnObjects.length) {
+            const newHistory = [...history.slice(0, historyIndex + 1), [...objs]];
+            setHistory(newHistory);
+            setHistoryIndex(newHistory.length - 1);
+            setCanUndo(true);
+            setCanRedo(false);
+          }
         }}
         showLayers={showLayers}
       />
@@ -1463,11 +1480,11 @@ function ResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => v
 export default function SmartBoard() {
   const [viewMode, setViewMode] = useState<ViewMode>("both");
   const [splitRatio, setSplitRatio] = useState(50);
+  const [swappedPanels, setSwappedPanels] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [slides, setSlides] = useState<NoteSlide[]>([{ id: "1", title: "Slide 1", content: "" }]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [folderStructure, setFolderStructure] = useState<FolderStructure[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -1476,7 +1493,6 @@ export default function SmartBoard() {
   const [viewingFile, setViewingFile] = useState<DriveFile | null>(null);
   const [currentColor, setCurrentColor] = useState("#000000");
   const [strokeWidth, setStrokeWidth] = useState(4);
-  const [selectedTemplate, setSelectedTemplate] = useState<WhiteboardTemplate | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
 
@@ -1562,17 +1578,8 @@ export default function SmartBoard() {
     setSlides(newSlides);
   };
 
-  const handleTemplateSelect = (template: WhiteboardTemplate) => {
-    setSelectedTemplate(template);
-  };
-
   return (
     <div className="h-screen flex flex-col bg-background">
-      <TemplateModal
-        isOpen={showTemplateModal}
-        onClose={() => setShowTemplateModal(false)}
-        onSelect={handleTemplateSelect}
-      />
       <BoardSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} bgColor={bgColor} onBgColorChange={setBgColor} gridType={gridType} onGridTypeChange={setGridType} />
 
       <header className="flex items-center justify-between px-6 py-3 border-b bg-card flex-shrink-0">
@@ -1583,15 +1590,17 @@ export default function SmartBoard() {
             <ViewModeButton mode="whiteboard" currentMode={viewMode} onClick={() => setViewMode("whiteboard")} icon={PenTool} label="Board" />
             <ViewModeButton mode="both" currentMode={viewMode} onClick={() => setViewMode("both")} icon={Columns} label="Both" />
           </div>
+          {viewMode === "both" && (
+            <button
+              onClick={() => setSwappedPanels(!swappedPanels)}
+              className="p-2 bg-muted hover:bg-muted/80 rounded-lg transition-colors"
+              title={swappedPanels ? "Notes on Right" : "Notes on Left"}
+            >
+              <ArrowLeftRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowTemplateModal(true)}
-            className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors text-sm"
-          >
-            <LayoutTemplate className="w-4 h-4" />
-            <span className="hidden md:inline">Templates</span>
-          </button>
           <button onClick={() => loadFolderStructure()} className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors text-sm">
             {isLoadingFiles ? <Loader2 className="w-4 h-4 animate-spin" /> : <Folder className="w-4 h-4" />}
             <span className="hidden md:inline">Files</span>
@@ -1626,35 +1635,60 @@ export default function SmartBoard() {
               onStrokeWidthChange={setStrokeWidth}
               onBgColorChange={setBgColor}
               onGridTypeChange={setGridType}
-              template={selectedTemplate}
-              onTemplateApplied={() => setSelectedTemplate(null)}
             />
           </div>
         )}
         {viewMode === "both" && (
           <>
-            <div style={{ width: `${splitRatio}%` }} className="flex flex-col">
-              {viewingFile ? (
-                viewingFile.mimeType === "application/pdf" ? <PDFViewer file={viewingFile} onClose={() => setViewingFile(null)} /> : <ImageViewer file={viewingFile} onClose={() => setViewingFile(null)} />
-              ) : (
-                <NotesPanel slides={slides} currentSlide={currentSlide} onSlideChange={setCurrentSlide} onAddSlide={addSlide} onDeleteSlide={deleteSlide} onUpdateSlide={updateSlide} folderStructure={folderStructure} onFileClick={(f) => setViewingFile(f)} onFolderClick={handleFolderClick} isLoadingFiles={isLoadingFiles} onRefreshFiles={loadFolderStructure} expandedFolders={expandedFolders} />
-              )}
-            </div>
-            <ResizeHandle onMouseDown={handleResizeStart} />
-            <div style={{ width: `${100 - splitRatio}%` }}>
-              <WhiteboardPanel
-                bgColor={bgColor}
-                gridType={gridType}
-                currentColor={currentColor}
-                onColorChange={setCurrentColor}
-                strokeWidth={strokeWidth}
-                onStrokeWidthChange={setStrokeWidth}
-                onBgColorChange={setBgColor}
-                onGridTypeChange={setGridType}
-                template={selectedTemplate}
-                onTemplateApplied={() => setSelectedTemplate(null)}
-              />
-            </div>
+            {swappedPanels ? (
+              <>
+                <div style={{ width: `${100 - splitRatio}%` }}>
+                  <WhiteboardPanel
+                    bgColor={bgColor}
+                    gridType={gridType}
+                    currentColor={currentColor}
+                    onColorChange={setCurrentColor}
+                    strokeWidth={strokeWidth}
+                    onStrokeWidthChange={setStrokeWidth}
+                    onBgColorChange={setBgColor}
+                    onGridTypeChange={setGridType}
+                  />
+                </div>
+                <ResizeHandle onMouseDown={handleResizeStart} />
+                <div style={{ width: `${splitRatio}%` }} className="flex flex-col">
+                  {viewingFile ? (
+                    viewingFile.mimeType === "application/pdf" ? <PDFViewer file={viewingFile} onClose={() => setViewingFile(null)} /> : <ImageViewer file={viewingFile} onClose={() => setViewingFile(null)} />
+                  ) : (
+                    <NotesPanel slides={slides} currentSlide={currentSlide} onSlideChange={setCurrentSlide} onAddSlide={addSlide} onDeleteSlide={deleteSlide} onUpdateSlide={updateSlide} folderStructure={folderStructure} onFileClick={(f) => setViewingFile(f)} onFolderClick={handleFolderClick} isLoadingFiles={isLoadingFiles} onRefreshFiles={loadFolderStructure} expandedFolders={expandedFolders} />
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ width: `${splitRatio}%` }} className="flex flex-col">
+                  {viewingFile ? (
+                    viewingFile.mimeType === "application/pdf" ? <PDFViewer file={viewingFile} onClose={() => setViewingFile(null)} /> : <ImageViewer file={viewingFile} onClose={() => setViewingFile(null)} />
+                  ) : (
+                    <NotesPanel slides={slides} currentSlide={currentSlide} onSlideChange={setCurrentSlide} onAddSlide={addSlide} onDeleteSlide={deleteSlide} onUpdateSlide={updateSlide} folderStructure={folderStructure} onFileClick={(f) => setViewingFile(f)} onFolderClick={handleFolderClick} isLoadingFiles={isLoadingFiles} onRefreshFiles={loadFolderStructure} expandedFolders={expandedFolders} />
+                  )}
+                </div>
+                <ResizeHandle onMouseDown={handleResizeStart} />
+                <div style={{ width: `${100 - splitRatio}%` }}>
+                  <WhiteboardPanel
+                    bgColor={bgColor}
+                    gridType={gridType}
+                    currentColor={currentColor}
+                    onColorChange={setCurrentColor}
+                    strokeWidth={strokeWidth}
+                    onStrokeWidthChange={setStrokeWidth}
+                    onBgColorChange={setBgColor}
+                    onGridTypeChange={setGridType}
+template={selectedTemplate}
+                    onTemplateApplied={() => setSelectedTemplate(null)}
+                  />
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
