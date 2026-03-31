@@ -127,6 +127,7 @@ smartboard/
 ├── package.json                    # Dependencies
 ├── tailwind.config.ts              # Tailwind CSS configuration
 └── tsconfig.json                   # TypeScript configuration
+
 ```
 
 ## Deployment to Cloudflare Pages
