@@ -123,12 +123,27 @@ export async function getFolderStructure(): Promise<FolderStructure[]> {
   const result: FolderStructure[] = [];
 
   try {
+    const sharedDriveName = process.env.DRIVE_SHARED_DRIVE_NAME;
+    
+    let driveId: string | undefined;
+    
+    if (sharedDriveName) {
+      const driveList = await drive.drives.list();
+      const sharedDrive = driveList.data.drives?.find(d => d.name === sharedDriveName);
+      if (sharedDrive) {
+        driveId = sharedDrive.id as string;
+        console.log("[Drive] Found shared drive:", sharedDriveName, "ID:", driveId);
+      }
+    }
+
     const foldersResponse = await drive.files.list({
       q: "mimeType='application/vnd.google-apps.folder' and trashed=false",
       orderBy: "name desc",
       pageSize: 100,
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
+      corpora: driveId ? "drive" as const : "user" as const,
+      driveId: driveId,
       fields: "files(id, name, modifiedTime)",
     });
 
@@ -150,6 +165,8 @@ export async function getFolderStructure(): Promise<FolderStructure[]> {
         pageSize: 100,
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,
+        corpora: driveId ? "drive" as const : "user" as const,
+        driveId: driveId,
         fields: "files(id, name, mimeType, modifiedTime)",
       });
 

@@ -21,6 +21,25 @@ export async function GET(request: Request) {
 
     if (action === "structure") {
       try {
+        const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+        const sharedDriveName = process.env.DRIVE_SHARED_DRIVE_NAME;
+        
+        if (!serviceAccountKey) {
+          return NextResponse.json({ 
+            structure: [], 
+            success: false, 
+            error: "GOOGLE_SERVICE_ACCOUNT_KEY is not configured. Please set the Google Drive service account JSON key in your environment variables." 
+          }, { status: 200 });
+        }
+        
+        if (!sharedDriveName) {
+          return NextResponse.json({ 
+            structure: [], 
+            success: false, 
+            error: "DRIVE_SHARED_DRIVE_NAME is not configured. Please set the shared drive name in your environment variables." 
+          }, { status: 200 });
+        }
+
         const structure = await getFolderStructure();
         console.log("Folder structure result:", JSON.stringify(structure, null, 2));
         return NextResponse.json({ structure, success: true });
