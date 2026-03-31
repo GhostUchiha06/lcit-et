@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import TldrawCanvas from "./TldrawCanvas";
+import WhiteboardCanvas from "./WhiteboardCanvas";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ViewMode, NoteSlide, DriveFile, FolderStructure } from "@/lib/types";
@@ -1415,22 +1415,10 @@ function WhiteboardPanel({
 
   return (
     <div className="relative w-full h-full overflow-hidden">
-      <TldrawCanvas
+      <WhiteboardCanvas
         bgColor={bgColor}
-        gridType={gridType}
-        currentTool={currentTool}
         currentColor={currentColor}
         strokeWidth={strokeWidth}
-        currentShape={currentShape}
-        lineStyle={lineStyle}
-        onObjectsChange={(objs) => {
-          setDrawnObjects(objs);
-        }}
-        showLayers={showLayers}
-        eraserOpacity={eraserOpacity}
-        eraserHardness={eraserHardness}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
       />
       <div className="absolute top-4 right-4 z-30 flex gap-2">
         <button
@@ -1518,37 +1506,6 @@ function WhiteboardPanel({
           </>
         </div>
       )}
-      <WhiteboardToolbar
-        currentTool={currentTool}
-        onToolChange={setCurrentTool}
-        currentColor={currentColor}
-        onColorChange={onColorChange}
-        strokeWidth={strokeWidth}
-        onStrokeWidthChange={onStrokeWidthChange}
-        lineStyle={lineStyle}
-        onLineStyleChange={setLineStyle}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        onClear={handleClear}
-        onExport={handleExport}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        currentShape={currentShape}
-        onShapeChange={setCurrentShape}
-        onAddPage={handleAddPage}
-        onPrevPage={handlePrevPage}
-        onNextPage={handleNextPage}
-        currentPage={currentPage}
-        pageCount={pages.length}
-        gridType={gridType}
-        onGridTypeChange={onGridTypeChange}
-        eraserOpacity={eraserOpacity}
-        onEraserOpacityChange={setEraserOpacity}
-        eraserHardness={eraserHardness}
-        onEraserHardnessChange={setEraserHardness}
-        showLayersPanel={showLayers}
-        onToggleLayersPanel={() => setShowLayers(!showLayers)}
-      />
     </div>
   );
 }
