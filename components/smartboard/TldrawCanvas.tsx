@@ -9,6 +9,21 @@ type LineStyle = "solid" | "dashed" | "dotted";
 
 interface Point { x: number; y: number; }
 
+interface BezierPoint {
+  id: string;
+  x: number;
+  y: number;
+  type: "corner" | "smooth";
+  handleIn: { x: number; y: number };
+  handleOut: { x: number; y: number };
+}
+
+interface BezierPath {
+  id: string;
+  closed: boolean;
+  points: BezierPoint[];
+}
+
 interface EraserParticle {
   x: number;
   y: number;
@@ -37,6 +52,7 @@ interface DrawObject {
   text?: string;
   fs?: number;
   lineStyle?: LineStyle;
+  bezierPath?: BezierPath;
 }
 
 interface Layer {
@@ -734,6 +750,16 @@ export default function TldrawCanvas({
   const [canRedo, setCanRedo] = useState(false);
   const lastObjectsCountRef = useRef(0);
 
+  const [penPath, setPenPath] = useState<BezierPath | null>(null);
+  const [penMode, setPenMode] = useState<"default" | "edit">("default");
+  const [editingPathId, setEditingPathId] = useState<string | null>(null);
+  const [draggingPoint, setDraggingPoint] = useState<string | null>(null);
+  const [draggingHandle, setDraggingHandle] = useState<"in" | "out" | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<string | null>(null);
+  const [penPreview, setPenPreview] = useState<{ x: number; y: number } | null>(null);
+  const [isDraggingAnchor, setIsDraggingAnchor] = useState(false);
+  const [altKeyDown, setAltKeyDown] = useState(false);
+
   const currentLayer = layers.find(l => l.id === currentLayerId);
   const activeObjects = currentLayer?.objects || [];
 
@@ -749,6 +775,84 @@ export default function TldrawCanvas({
   };
 
   const activeTool: Tool = currentTool === "geo" ? (toolMap[currentShape] || "rect") as Tool : currentTool as Tool;
+
+  const cubicBezier = (t: number, p0: Point, p1: Point, p2: Point, p3: Point): Point => {
+    const u = 1 - t;
+    return {
+      x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+      y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+    };
+  };
+
+  const getBezierPathPoints = (path: BezierPath, resolution = 50): Point[] => {
+    const result: Point[] = [];
+    for (let i = 0; i < path.points.length; i++) {
+      const current = path.points[i];
+      const next = path.points[(i + 1) % path.points.length];
+      if (!next && !path.closed) break;
+
+      const p0 = { x: current.x, y: current.y };
+      const p1 = { x: current.x + current.handleOut.x, y: current.y + current.handleOut.y };
+      const p2 = { x: next.x + next.handleIn.x, y: next.y + next.handleIn.y };
+      const p3 = { x: next.x, y: next.y };
+
+      for (let t = 0; t <= 1; t += 1 / resolution) {
+        result.push(cubicBezier(t, p0, p1, p2, p3));
+      }
+    }
+    return result;
+  };
+
+  const findPointAtPosition = (paths: BezierPath[], px: number, py: number, threshold = 10): { path: BezierPath; point: BezierPoint; index: number } | null => {
+    for (const path of paths) {
+      for (let i = 0; i < path.points.length; i++) {
+        const pt = path.points[i];
+        const dist = Math.hypot(pt.x - px, pt.y - py);
+        if (dist < threshold) {
+          return { path, point: pt, index: i };
+        }
+      }
+    }
+    return null;
+  };
+
+  const findHandleAtPosition = (paths: BezierPath[], px: number, py: number, threshold = 8): { path: BezierPath; point: BezierPoint; handle: "in" | "out"; index: number } | null => {
+    for (const path of paths) {
+      for (let i = 0; i < path.points.length; i++) {
+        const pt = path.points[i];
+        const handleInPos = { x: pt.x + pt.handleIn.x, y: pt.y + pt.handleIn.y };
+        const handleOutPos = { x: pt.x + pt.handleOut.x, y: pt.y + pt.handleOut.y };
+
+        if (Math.hypot(handleInPos.x - px, handleInPos.y - py) < threshold) {
+          return { path, point: pt, handle: "in", index: i };
+        }
+        if (Math.hypot(handleOutPos.x - px, handleOutPos.y - py) < threshold) {
+          return { path, point: pt, handle: "out", index: i };
+        }
+      }
+    }
+    return null;
+  };
+
+  const findSegmentAtPosition = (path: BezierPath, px: number, py: number, threshold = 8): { index: number; t: number } | null => {
+    const sampled = getBezierPathPoints(path, 100);
+    let minDist = threshold;
+    let closestIndex = -1;
+    let closestT = 0;
+
+    for (let i = 0; i < sampled.length - 1; i++) {
+      const p1 = sampled[i];
+      const p2 = sampled[i + 1];
+      const dist = dSeg(px, py, p1.x, p1.y, p2.x, p2.y);
+      if (dist < minDist) {
+        minDist = dist;
+        closestIndex = Math.floor((i / sampled.length) * path.points.length);
+        closestT = i / sampled.length;
+      }
+    }
+
+    return closestIndex >= 0 ? { index: closestIndex, t: closestT } : null;
+  };
 
   useEffect(() => {
     setShowGrid(gridType !== "none");
@@ -856,17 +960,47 @@ export default function TldrawCanvas({
 
     layers.forEach(layer => {
       if (!layer.visible) return;
-      layer.objects.forEach(o => drawO(ctx, o));
+      layer.objects.forEach(o => {
+        drawO(ctx, o);
+        if (o.bezierPath && layer.visible) {
+          drawBezierPath(ctx, o.bezierPath, o.c, o.w, o.fc);
+        }
+      });
     });
     
     if (curObj) drawO(ctx, curObj);
+
+    if (penPath && activeTool === "pen") {
+      drawBezierPath(ctx, penPath, currentColor, strokeWidth, fillEnabled ? fillColor : "transparent");
+      penPath.points.forEach((pt, i) => {
+        drawPenAnchor(ctx, pt, i === 0);
+      });
+      if (penPreview) {
+        const lastPt = penPath.points[penPath.points.length - 1];
+        ctx.save();
+        ctx.strokeStyle = currentColor;
+        ctx.lineWidth = strokeWidth;
+        ctx.globalAlpha = 0.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(lastPt.x, lastPt.y);
+        ctx.lineTo(penPreview.x, penPreview.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
     
     selectedObjectIds.forEach(id => {
       const layerId = findObjectLayer(id);
       if (layerId) {
         const layer = layers.find(l => l.id === layerId);
         const obj = layer?.objects.find(o => o.id === id);
-        if (obj && layer?.visible) drawSel(ctx, obj);
+        if (obj && layer?.visible) {
+          drawSel(ctx, obj);
+          if (obj.bezierPath) {
+            drawBezierHandles(ctx, obj.bezierPath);
+          }
+        }
       }
     });
 
@@ -1078,6 +1212,75 @@ export default function TldrawCanvas({
     c.restore();
   };
 
+  const drawBezierPath = (c: CanvasRenderingContext2D, path: BezierPath, color: string, width: number, fill: string) => {
+    if (path.points.length < 2) return;
+    c.save();
+    c.strokeStyle = color;
+    c.lineWidth = width;
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    c.fillStyle = fill !== "transparent" ? fill : "transparent";
+
+    const sampled = getBezierPathPoints(path, 50);
+    if (sampled.length === 0) { c.restore(); return; }
+
+    c.beginPath();
+    c.moveTo(sampled[0].x, sampled[0].y);
+    for (let i = 1; i < sampled.length; i++) {
+      c.lineTo(sampled[i].x, sampled[i].y);
+    }
+    if (path.closed) c.closePath();
+    c.stroke();
+    if (path.closed && fill !== "transparent") c.fill();
+    c.restore();
+  };
+
+  const drawPenAnchor = (c: CanvasRenderingContext2D, pt: BezierPoint, isFirst: boolean) => {
+    c.save();
+    c.fillStyle = isFirst ? "#6366f1" : "#ffffff";
+    c.strokeStyle = "#6366f1";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+    c.restore();
+  };
+
+  const drawBezierHandles = (c: CanvasRenderingContext2D, path: BezierPath) => {
+    c.save();
+    path.points.forEach((pt) => {
+      const hasIn = pt.handleIn.x !== 0 || pt.handleIn.y !== 0;
+      const hasOut = pt.handleOut.x !== 0 || pt.handleOut.y !== 0;
+
+      if (hasIn) {
+        c.strokeStyle = "#6366f1";
+        c.lineWidth = 1;
+        c.beginPath();
+        c.moveTo(pt.x, pt.y);
+        c.lineTo(pt.x + pt.handleIn.x, pt.y + pt.handleIn.y);
+        c.stroke();
+        c.fillStyle = "#6366f1";
+        c.beginPath();
+        c.arc(pt.x + pt.handleIn.x, pt.y + pt.handleIn.y, 3, 0, Math.PI * 2);
+        c.fill();
+      }
+      if (hasOut) {
+        c.strokeStyle = "#6366f1";
+        c.lineWidth = 1;
+        c.beginPath();
+        c.moveTo(pt.x, pt.y);
+        c.lineTo(pt.x + pt.handleOut.x, pt.y + pt.handleOut.y);
+        c.stroke();
+        c.fillStyle = "#6366f1";
+        c.beginPath();
+        c.arc(pt.x + pt.handleOut.x, pt.y + pt.handleOut.y, 3, 0, Math.PI * 2);
+        c.fill();
+      }
+    });
+    c.restore();
+  };
+
   const moveObj = (o: DrawObject, dx: number, dy: number) => {
     switch (o.type) {
       case "rect":
@@ -1259,8 +1462,51 @@ export default function TldrawCanvas({
       setLx(p.x);
       setLy(p.y);
 
-      if (activeTool === "pencil" || activeTool === "pen") {
-        setCurObj({ id: genId(), type: "path", pts: [{ x: p.x, y: p.y }], c: currentColor, fc: "transparent", w: strokeWidth, smooth: activeTool === "pen", op: 1, lineStyle });
+      if (activeTool === "pen") {
+        const bezierObjects = layers.flatMap(l => l.objects).filter(o => o.bezierPath);
+        const bezierPaths = bezierObjects.map(o => o.bezierPath!);
+        
+        const hitPoint = findPointAtPosition(bezierPaths, p.x, p.y);
+        const hitHandle = findHandleAtPosition(bezierPaths, p.x, p.y);
+
+        if (hitPoint && penMode === "edit") {
+          setDraggingPoint(hitPoint.point.id);
+          setEditingPathId(hitPoint.path.id);
+          setIsDraggingAnchor(true);
+          return;
+        }
+
+        if (hitHandle && penMode === "edit") {
+          setDraggingPoint(hitHandle.point.id);
+          setDraggingHandle(hitHandle.handle);
+          setEditingPathId(hitHandle.path.id);
+          setIsDraggingAnchor(true);
+          return;
+        }
+
+        const isDragging = e.shiftKey;
+        const newPoint: BezierPoint = {
+          id: genId(),
+          x: p.x,
+          y: p.y,
+          type: isDragging ? "smooth" : "corner",
+          handleIn: isDragging ? { x: -(p.x - sx) / 3, y: -(p.y - sy) / 3 } : { x: 0, y: 0 },
+          handleOut: isDragging ? { x: (p.x - sx) / 3, y: (p.y - sy) / 3 } : { x: 0, y: 0 },
+        };
+
+        if (!penPath) {
+          setPenPath({ id: genId(), closed: false, points: [newPoint] });
+        } else {
+          setPenPath(prev => prev ? { ...prev, points: [...prev.points, newPoint] } : null);
+        }
+        setSx(p.x);
+        setSy(p.y);
+        render();
+        return;
+      }
+
+      if (activeTool === "pencil") {
+        setCurObj({ id: genId(), type: "path", pts: [{ x: p.x, y: p.y }], c: currentColor, fc: "transparent", w: strokeWidth, smooth: false, op: 1, lineStyle });
       }
 
       if (activeTool === "select") {
@@ -1271,6 +1517,76 @@ export default function TldrawCanvas({
     const handleMouseMove = (e: MouseEvent) => {
       if (activeTool === "eraser" || activeTool === "brushEraser") {
         setEraserCursorPos({ x: e.clientX, y: e.clientY });
+      }
+
+      if (activeTool === "pen") {
+        const p = cpx(e);
+        setPenPreview(p);
+        
+        if (isDraggingAnchor && draggingPoint) {
+          const dx = p.x - sx;
+          const dy = p.y - sy;
+          
+          if (draggingHandle) {
+            setLayers(prev => prev.map(layer => ({
+              ...layer,
+              objects: layer.objects.map(obj => {
+                if (!obj.bezierPath || obj.bezierPath.id !== editingPathId) return obj;
+                const updatedPoints = obj.bezierPath.points.map(pt => {
+                  if (pt.id !== draggingPoint) return pt;
+                  if (draggingHandle === "out") {
+                    return {
+                      ...pt,
+                      handleOut: { x: pt.handleOut.x + dx, y: pt.handleOut.y + dy },
+                      handleIn: altKeyDown ? pt.handleIn : { x: -(pt.handleOut.x + dx), y: -(pt.handleOut.y + dy) },
+                    };
+                  } else {
+                    return {
+                      ...pt,
+                      handleIn: { x: pt.handleIn.x + dx, y: pt.handleIn.y + dy },
+                      handleOut: altKeyDown ? pt.handleOut : { x: -(pt.handleIn.x + dx), y: -(pt.handleIn.y + dy) },
+                    };
+                  }
+                });
+                return { ...obj, bezierPath: { ...obj.bezierPath, points: updatedPoints } };
+              })
+            })));
+          } else {
+            setLayers(prev => prev.map(layer => ({
+              ...layer,
+              objects: layer.objects.map(obj => {
+                if (!obj.bezierPath || obj.bezierPath.id !== editingPathId) return obj;
+                const updatedPoints = obj.bezierPath.points.map(pt => 
+                  pt.id === draggingPoint ? { ...pt, x: pt.x + dx, y: pt.y + dy } : pt
+                );
+                return { ...obj, bezierPath: { ...obj.bezierPath, points: updatedPoints } };
+              })
+            })));
+          }
+          setSx(p.x);
+          setSy(p.y);
+          render();
+          return;
+        }
+        
+        if (penPath && drawing) {
+          const lastPt = penPath.points[penPath.points.length - 1];
+          const dx = p.x - lastPt.x;
+          const dy = p.y - lastPt.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 20) {
+            setPenPath(prev => prev ? {
+              ...prev,
+              points: prev.points.map((pt, i) => 
+                i === prev.points.length - 1 
+                  ? { ...pt, handleOut: { x: dx / 3, y: dy / 3 }, handleIn: { x: -dx / 3, y: -dy / 3 } }
+                  : pt
+              )
+            } : null);
+          }
+          render();
+        }
+        return;
       }
 
       if (panning) {
@@ -1353,7 +1669,7 @@ export default function TldrawCanvas({
         return;
       }
 
-      if (activeTool === "pencil" || activeTool === "pen") {
+      if (activeTool === "pencil") {
         setCurObj(prev => prev ? { ...prev, pts: [...(prev.pts || []), { x: p.x, y: p.y }] } : null);
         render();
         return;
@@ -1370,8 +1686,55 @@ export default function TldrawCanvas({
         setPanning(false);
         return;
       }
+
+      if (currentTool === "pen") {
+        if (isDraggingAnchor) {
+          setIsDraggingAnchor(false);
+          setDraggingPoint(null);
+          setDraggingHandle(null);
+          setEditingPathId(null);
+          render();
+          return;
+        }
+
+        if (penPath && penPath.points.length >= 2) {
+          const distToStart = Math.hypot(
+            penPath.points[penPath.points.length - 1].x - penPath.points[0].x,
+            penPath.points[penPath.points.length - 1].y - penPath.points[0].y
+          );
+          const isClosed = distToStart < 10;
+
+          const bezierObj: DrawObject = {
+            id: genId(),
+            type: "bezier",
+            c: currentColor,
+            fc: fillEnabled ? fillColor : "transparent",
+            w: strokeWidth,
+            op: 1,
+            bezierPath: { ...penPath, closed: isClosed },
+          };
+
+          setLayers(prev => prev.map(layer => {
+            if (layer.id === currentLayerId) {
+              return { ...layer, objects: [...layer.objects, bezierObj] };
+            }
+            return layer;
+          }));
+
+          if (isClosed) {
+            setPenPath(null);
+          } else {
+            setPenPath(prev => prev ? { ...prev, points: [penPath.points[penPath.points.length - 1]] } : null);
+          }
+          render();
+          return;
+        }
+        return;
+      }
+
       if (!drawing) return;
       setDrawing(false);
+      setPenPreview(null);
 
       if (activeTool === "select") {
         if (marquee) {
