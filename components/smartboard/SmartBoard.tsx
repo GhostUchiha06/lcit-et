@@ -1683,8 +1683,6 @@ export default function SmartBoard() {
                     onStrokeWidthChange={setStrokeWidth}
                     onBgColorChange={setBgColor}
                     onGridTypeChange={setGridType}
-template={selectedTemplate}
-                    onTemplateApplied={() => setSelectedTemplate(null)}
                   />
                 </div>
               </>
