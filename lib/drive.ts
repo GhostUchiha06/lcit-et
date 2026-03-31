@@ -122,64 +122,84 @@ export async function getFolderStructure(): Promise<FolderStructure[]> {
   const drive = getDriveClient();
   const result: FolderStructure[] = [];
 
-  try {
-    const sharedDriveName = process.env.DRIVE_SHARED_DRIVE_NAME;
-    
-    let driveId: string | undefined;
-    
-    if (sharedDriveName) {
-      const driveList = await drive.drives.list();
-      const sharedDrive = driveList.data.drives?.find(d => d.name === sharedDriveName);
-      if (sharedDrive) {
-        driveId = sharedDrive.id as string;
-        console.log("[Drive] Found shared drive:", sharedDriveName, "ID:", driveId);
-      }
-    }
-
+  const fetchFoldersInDrive = async (corpora: "drive" | "user", driveId?: string) => {
     const foldersResponse = await drive.files.list({
       q: "mimeType='application/vnd.google-apps.folder' and trashed=false",
       orderBy: "name desc",
       pageSize: 100,
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
-      corpora: driveId ? "drive" as const : "user" as const,
-      driveId: driveId,
+      corpora,
+      driveId,
       fields: "files(id, name, modifiedTime)",
     });
+    return foldersResponse.data.files || [];
+  };
 
-    const folders = foldersResponse.data.files || [];
+  const fetchFilesInFolder = async (folderId: string, corpora: "drive" | "user", driveId?: string) => {
+    const filesResponse = await drive.files.list({
+      q: `'${folderId}' in parents and trashed=false`,
+      orderBy: "modifiedTime desc",
+      pageSize: 100,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      corpora,
+      driveId,
+      fields: "files(id, name, mimeType, modifiedTime)",
+    });
+
+    return (filesResponse.data.files || [])
+      .filter((f: drive_v3.Schema$File) => 
+        f.mimeType?.includes("image") || f.mimeType?.includes("pdf")
+      )
+      .map((file: drive_v3.Schema$File) => ({
+        id: file.id!,
+        name: file.name!,
+        mimeType: file.mimeType!,
+        modifiedTime: file.modifiedTime!,
+      }));
+  };
+
+  try {
+    const sharedDriveName = process.env.DRIVE_SHARED_DRIVE_NAME;
+    let sharedDriveId: string | undefined;
+    
+    if (sharedDriveName) {
+      try {
+        const driveList = await drive.drives.list();
+        const sharedDrive = driveList.data.drives?.find(d => d.name === sharedDriveName);
+        if (sharedDrive) {
+          sharedDriveId = sharedDrive.id as string;
+        }
+      } catch (err) {
+        console.log("[Drive] Could not list drives:", err);
+      }
+    }
+
+    let folders: drive_v3.Schema$File[] = [];
+
+    if (sharedDriveId) {
+      console.log("[Drive] Searching in shared drive:", sharedDriveId);
+      folders = await fetchFoldersInDrive("drive", sharedDriveId);
+    }
+
+    if (folders.length === 0) {
+      console.log("[Drive] Searching in user drive...");
+      folders = await fetchFoldersInDrive("user");
+    }
+
     console.log("[Drive] Found folders:", folders.length);
     
     if (folders.length === 0) {
-      console.log("[Drive] No folders found - this is normal if you haven't saved any files yet");
       return [];
     }
 
     for (const folder of folders) {
       const folderId = folder.id!;
       const folderName = folder.name!;
+      const corpora = sharedDriveId ? "drive" : "user";
 
-      const filesResponse = await drive.files.list({
-        q: `'${folderId}' in parents and trashed=false`,
-        orderBy: "modifiedTime desc",
-        pageSize: 100,
-        supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
-        corpora: driveId ? "drive" as const : "user" as const,
-        driveId: driveId,
-        fields: "files(id, name, mimeType, modifiedTime)",
-      });
-
-      const files = (filesResponse.data.files || [])
-        .filter((f: drive_v3.Schema$File) => 
-          f.mimeType?.includes("image") || f.mimeType?.includes("pdf")
-        )
-        .map((file: drive_v3.Schema$File) => ({
-          id: file.id!,
-          name: file.name!,
-          mimeType: file.mimeType!,
-          modifiedTime: file.modifiedTime!,
-        }));
+      const files = await fetchFilesInFolder(folderId, corpora, sharedDriveId);
 
       result.push({
         name: folderName,
