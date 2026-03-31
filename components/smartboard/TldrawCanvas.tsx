@@ -1312,7 +1312,7 @@ export default function TldrawCanvas({
         return;
       }
 
-      if (["line", "arrow", "rect", "circle", "triangle", "diamond"].includes(activeTool)) {
+      if (["line", "arrow", "rect", "circle", "triangle", "diamond", "hexagon", "star", "chat", "checkbox"].includes(activeTool)) {
         setCurObj(mkShape(activeTool, sx, sy, p.x, p.y));
         render();
       }
