@@ -835,7 +835,7 @@ function WhiteboardToolbar({
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
-  onExport: (format: "png" | "svg" | "json") => void;
+  onExport: (format: "png" | "svg" | "json" | "pdf") => void;
   canUndo: boolean;
   canRedo: boolean;
   currentShape: string;
@@ -1041,6 +1041,13 @@ function WhiteboardToolbar({
                 Export as PNG
               </button>
               <button
+                onClick={() => { onExport("pdf"); setShowExportMenu(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
+              >
+                <Download className="w-4 h-4" />
+                Export as PDF
+              </button>
+              <button
                 onClick={() => { onExport("svg"); setShowExportMenu(false); }}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
               >
@@ -1160,7 +1167,7 @@ function WhiteboardPanel({
     setCanRedo(false);
   };
 
-  const handleExport = async (format: "png" | "svg" | "json") => {
+  const handleExport = async (format: "png" | "svg" | "json" | "pdf") => {
     try {
       const canvas = document.querySelector("canvas");
       if (!canvas) return;
@@ -1171,6 +1178,21 @@ function WhiteboardPanel({
         a.href = url;
         a.download = `whiteboard-page-${currentPage}.png`;
         a.click();
+      } else if (format === "pdf") {
+        const imageData = canvas.toDataURL("image/png");
+        const response = await fetch("/api/adobe-pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageData, fileName: `whiteboard-page-${currentPage}.pdf` }),
+        });
+        if (!response.ok) throw new Error("PDF export failed");
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `whiteboard-page-${currentPage}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
       } else if (format === "svg") {
         const exportData = {
           objects: drawnObjects,

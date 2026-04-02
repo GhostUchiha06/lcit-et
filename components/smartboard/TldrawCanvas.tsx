@@ -751,7 +751,7 @@ export default function TldrawCanvas({
   const lastObjectsCountRef = useRef(0);
 
   const [penPath, setPenPath] = useState<BezierPath | null>(null);
-  const [penMode, setPenMode] = useState<"default" | "edit">("default");
+  const [penMode, setPenMode] = useState<"default" | "curvature" | "freeform" | "edit">("default");
   const [editingPathId, setEditingPathId] = useState<string | null>(null);
   const [draggingPoint, setDraggingPoint] = useState<string | null>(null);
   const [draggingHandle, setDraggingHandle] = useState<"in" | "out" | null>(null);
@@ -759,6 +759,13 @@ export default function TldrawCanvas({
   const [penPreview, setPenPreview] = useState<{ x: number; y: number } | null>(null);
   const [isDraggingAnchor, setIsDraggingAnchor] = useState(false);
   const [altKeyDown, setAltKeyDown] = useState(false);
+  const [freeformPoints, setFreeformPoints] = useState<Point[]>([]);
+  const [lastFreeformSample, setLastFreeformSample] = useState<Point | null>(null);
+  const [snapToGrid, setSnapToGrid] = useState(false);
+  const [snapToAngle, setSnapToAngle] = useState(true);
+  const [snapToPoints, setSnapToPoints] = useState(true);
+  const gridSnapSize = 15;
+  const angleSnapIncrement = 15;
 
   const currentLayer = layers.find(l => l.id === currentLayerId);
   const activeObjects = currentLayer?.objects || [];
@@ -852,6 +859,158 @@ export default function TldrawCanvas({
     }
 
     return closestIndex >= 0 ? { index: closestIndex, t: closestT } : null;
+  };
+
+  const snapPoint = (p: Point): Point => {
+    let snapped = { ...p };
+
+    if (snapToGrid) {
+      snapped.x = Math.round(snapped.x / gridSnapSize) * gridSnapSize;
+      snapped.y = Math.round(snapped.y / gridSnapSize) * gridSnapSize;
+    }
+
+    if (snapToPoints && penPath && penPath.points.length > 0) {
+      const lastPt = penPath.points[penPath.points.length - 1];
+      const dist = Math.hypot(snapped.x - lastPt.x, snapped.y - lastPt.y);
+      if (dist < 10) {
+        snapped = { x: lastPt.x, y: lastPt.y };
+      }
+    }
+
+    if (snapToAngle && penPath && penPath.points.length > 0) {
+      const lastPt = penPath.points[penPath.points.length - 1];
+      const dx = snapped.x - lastPt.x;
+      const dy = snapped.y - lastPt.y;
+      const angle = Math.atan2(dy, dx);
+      const snapAngleRad = (angleSnapIncrement * Math.PI) / 180;
+      const snappedAngle = Math.round(angle / snapAngleRad) * snapAngleRad;
+      const dist = Math.hypot(dx, dy);
+      snapped = {
+        x: lastPt.x + dist * Math.cos(snappedAngle),
+        y: lastPt.y + dist * Math.sin(snappedAngle),
+      };
+    }
+
+    return snapped;
+  };
+
+  const convertPointType = (path: BezierPath, pointId: string, type: "corner" | "smooth"): BezierPath => {
+    const updatedPoints: BezierPoint[] = path.points.map((pt): BezierPoint => {
+      if (pt.id !== pointId) return pt;
+      if (type === "corner") {
+        return { ...pt, type: "corner", handleIn: { x: 0, y: 0 }, handleOut: { x: 0, y: 0 } };
+      } else {
+        const avgX = (pt.handleIn.x + pt.handleOut.x) / 2;
+        const avgY = (pt.handleIn.y + pt.handleOut.y) / 2;
+        return { ...pt, type: "smooth", handleIn: { x: -avgX, y: -avgY }, handleOut: { x: avgX, y: avgY } };
+      }
+    });
+    return { ...path, points: updatedPoints };
+  };
+
+  const deletePoint = (path: BezierPath, pointId: string): BezierPath | null => {
+    if (path.points.length <= 2) return null;
+    const filtered = path.points.filter(pt => pt.id !== pointId);
+    return { ...path, points: filtered };
+  };
+
+  const smoothFreeformPath = (points: Point[], smoothing = 0.5): BezierPoint[] => {
+    if (points.length < 2) return [];
+    
+    const bezierPoints: BezierPoint[] = points.map((p): BezierPoint => ({
+      id: genId(),
+      x: p.x,
+      y: p.y,
+      type: "smooth",
+      handleIn: { x: 0, y: 0 },
+      handleOut: { x: 0, y: 0 },
+    }));
+
+    for (let i = 1; i < bezierPoints.length - 1; i++) {
+      const prev = bezierPoints[i - 1];
+      const curr = bezierPoints[i];
+      const next = bezierPoints[i + 1];
+
+      const dx = (next.x - prev.x) * smoothing;
+      const dy = (next.y - prev.y) * smoothing;
+
+      curr.handleIn = { x: -dx / 3, y: -dy / 3 };
+      curr.handleOut = { x: dx / 3, y: dy / 3 };
+    }
+
+    return bezierPoints;
+  };
+
+  const aiSmoothPath = (path: BezierPath, strength = 0.7): BezierPath => {
+    if (path.points.length < 3) return path;
+    
+    const smoothedPoints: BezierPoint[] = path.points.map((pt, i) => {
+      if (i === 0 || i === path.points.length - 1) return pt;
+      
+      const prev = path.points[i - 1];
+      const next = path.points[i + 1];
+      
+      const smoothX = pt.x * (1 - strength) + (prev.x + next.x) / 2 * strength;
+      const smoothY = pt.y * (1 - strength) + (prev.y + next.y) / 2 * strength;
+      
+      const dx = next.x - prev.x;
+      const dy = next.y - prev.y;
+      
+      return {
+        ...pt,
+        x: smoothX,
+        y: smoothY,
+        type: "smooth" as const,
+        handleIn: { x: -dx / 6, y: -dy / 6 },
+        handleOut: { x: dx / 6, y: dy / 6 },
+      };
+    });
+    
+    return { ...path, points: smoothedPoints };
+  };
+
+  const detectShape = (path: BezierPath): { type: string; confidence: number } | null => {
+    if (path.points.length < 3) return null;
+    
+    const points = path.points;
+    const first = points[0];
+    const last = points[points.length - 1];
+    const distToStart = Math.hypot(last.x - first.x, last.y - first.y);
+    const pathLength = points.reduce((acc, pt, i) => {
+      if (i === 0) return 0;
+      return acc + Math.hypot(pt.x - points[i - 1].x, pt.y - points[i - 1].y);
+    }, 0);
+    
+    const isClosed = distToStart < 20;
+    const closureRatio = distToStart / (pathLength || 1);
+    
+    if (isClosed && closureRatio < 0.1) {
+      const centerX = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+      const centerY = points.reduce((sum, p) => sum + p.y, 0) / points.length;
+      const distances = points.map(p => Math.hypot(p.x - centerX, p.y - centerY));
+      const avgDist = distances.reduce((a, b) => a + b, 0) / distances.length;
+      const variance = distances.reduce((sum, d) => sum + Math.pow(d - avgDist, 2), 0) / distances.length;
+      const circularity = 1 - Math.min(1, Math.sqrt(variance) / avgDist);
+      
+      if (circularity > 0.8) {
+        return { type: "ellipse", confidence: circularity };
+      }
+      
+      const angles = points.map((p, i) => {
+        if (i === 0 || i === points.length - 1) return 0;
+        const prev = points[i - 1];
+        const next = points[i + 1];
+        const angle1 = Math.atan2(prev.y - p.y, prev.x - p.x);
+        const angle2 = Math.atan2(next.y - p.y, next.x - p.x);
+        return Math.abs(angle2 - angle1);
+      }).filter(a => a > 0.5);
+      
+      if (angles.length >= 3 && angles.length <= 6) {
+        return { type: "polygon", confidence: 0.7 };
+      }
+    }
+    
+    return null;
   };
 
   useEffect(() => {
@@ -1470,9 +1629,29 @@ export default function TldrawCanvas({
         const hitHandle = findHandleAtPosition(bezierPaths, p.x, p.y);
 
         if (hitPoint && penMode === "edit") {
-          setDraggingPoint(hitPoint.point.id);
-          setEditingPathId(hitPoint.path.id);
-          setIsDraggingAnchor(true);
+          if (e.altKey) {
+            const updatedPath = deletePoint(hitPoint.path, hitPoint.point.id);
+            if (updatedPath) {
+              setLayers(prev => prev.map(layer => ({
+                ...layer,
+                objects: layer.objects.map(obj => obj.bezierPath?.id === hitPoint.path.id ? { ...obj, bezierPath: updatedPath } : obj)
+              })));
+            } else {
+              setLayers(prev => prev.map(layer => ({
+                ...layer,
+                objects: layer.objects.filter(obj => obj.bezierPath?.id !== hitPoint.path.id)
+              })));
+            }
+            render();
+            return;
+          }
+          const newType = hitPoint.point.type === "corner" ? "smooth" : "corner";
+          const updatedPath = convertPointType(hitPoint.path, hitPoint.point.id, newType);
+          setLayers(prev => prev.map(layer => ({
+            ...layer,
+            objects: layer.objects.map(obj => obj.bezierPath?.id === hitPoint.path.id ? { ...obj, bezierPath: updatedPath } : obj)
+          })));
+          render();
           return;
         }
 
@@ -1484,14 +1663,53 @@ export default function TldrawCanvas({
           return;
         }
 
+        if (hitPoint && penMode === "edit") {
+          setDraggingPoint(hitPoint.point.id);
+          setEditingPathId(hitPoint.path.id);
+          setIsDraggingAnchor(true);
+          return;
+        }
+
+        for (const obj of bezierObjects) {
+          if (obj.bezierPath) {
+            const seg = findSegmentAtPosition(obj.bezierPath, p.x, p.y);
+            if (seg) {
+              const newPoint: BezierPoint = {
+                id: genId(),
+                x: p.x,
+                y: p.y,
+                type: penMode === "curvature" ? "smooth" : "corner",
+                handleIn: penMode === "curvature" ? { x: -10, y: 0 } : { x: 0, y: 0 },
+                handleOut: penMode === "curvature" ? { x: 10, y: 0 } : { x: 0, y: 0 },
+              };
+              const updatedPoints = [...obj.bezierPath!.points];
+              updatedPoints.splice(seg.index + 1, 0, newPoint);
+              const updatedPath = { ...obj.bezierPath!, points: updatedPoints };
+              setLayers(prev => prev.map(layer => ({
+                ...layer,
+                objects: layer.objects.map(o => o.bezierPath?.id === obj.bezierPath!.id ? { ...o, bezierPath: updatedPath } : o)
+              })));
+              render();
+              return;
+            }
+          }
+        }
+
+        if (penMode === "freeform") {
+          setFreeformPoints([p]);
+          setLastFreeformSample(p);
+          return;
+        }
+
         const isDragging = e.shiftKey;
+        const snappedP = snapPoint(p);
         const newPoint: BezierPoint = {
           id: genId(),
-          x: p.x,
-          y: p.y,
-          type: isDragging ? "smooth" : "corner",
-          handleIn: isDragging ? { x: -(p.x - sx) / 3, y: -(p.y - sy) / 3 } : { x: 0, y: 0 },
-          handleOut: isDragging ? { x: (p.x - sx) / 3, y: (p.y - sy) / 3 } : { x: 0, y: 0 },
+          x: snappedP.x,
+          y: snappedP.y,
+          type: isDragging || penMode === "curvature" ? "smooth" : "corner",
+          handleIn: (isDragging || penMode === "curvature") ? { x: -(snappedP.x - sx) / 3, y: -(snappedP.y - sy) / 3 } : { x: 0, y: 0 },
+          handleOut: (isDragging || penMode === "curvature") ? { x: (snappedP.x - sx) / 3, y: (snappedP.y - sy) / 3 } : { x: 0, y: 0 },
         };
 
         if (!penPath) {
@@ -1499,8 +1717,8 @@ export default function TldrawCanvas({
         } else {
           setPenPath(prev => prev ? { ...prev, points: [...prev.points, newPoint] } : null);
         }
-        setSx(p.x);
-        setSy(p.y);
+        setSx(snappedP.x);
+        setSy(snappedP.y);
         render();
         return;
       }
@@ -1565,6 +1783,25 @@ export default function TldrawCanvas({
           }
           setSx(p.x);
           setSy(p.y);
+          render();
+          return;
+        }
+        
+        if (penMode === "freeform" && drawing) {
+          const snappedP = snapPoint(p);
+          if (lastFreeformSample) {
+            const dist = Math.hypot(snappedP.x - lastFreeformSample.x, snappedP.y - lastFreeformSample.y);
+            if (dist < 5) return;
+          }
+          setFreeformPoints(prev => [...prev, snappedP]);
+          setLastFreeformSample(snappedP);
+          
+          if (freeformPoints.length > 1) {
+            const bezierPoints = smoothFreeformPath(freeformPoints, 0.3);
+            if (bezierPoints.length > 0) {
+              setPenPath({ id: penPath?.id || genId(), closed: false, points: bezierPoints });
+            }
+          }
           render();
           return;
         }
